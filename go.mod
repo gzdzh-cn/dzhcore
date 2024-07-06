@@ -6,9 +6,9 @@ require (
 	github.com/aliyun/aliyun-oss-go-sdk v3.0.2+incompatible
 	github.com/bwmarrin/snowflake v0.3.0
 	github.com/gogf/gf v1.16.9
-	github.com/gogf/gf/contrib/drivers/mysql/v2 v2.7.2
-	github.com/gogf/gf/contrib/nosql/redis/v2 v2.7.2
-	github.com/gogf/gf/v2 v2.7.2
+	github.com/gogf/gf/contrib/drivers/mysql/v2 v2.7.0
+	github.com/gogf/gf/contrib/nosql/redis/v2 v2.7.0
+	github.com/gogf/gf/v2 v2.7.0
 	github.com/golang-jwt/jwt/v4 v4.5.0
 	gorm.io/driver/mysql v1.5.7
 	gorm.io/gorm v1.25.10
