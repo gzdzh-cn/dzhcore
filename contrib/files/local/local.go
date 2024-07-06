@@ -31,12 +31,12 @@ func (l *Local) Upload(ctx g.Ctx) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return dzhCore.Config.File.Domain + "/public/uploads/" + dir + "/" + fileName, err
+	return dzhcore.Config.File.Domain + "/public/uploads/" + dir + "/" + fileName, err
 }
 
 func (l *Local) GetMode() (data interface{}, err error) {
 	data = g.MapStrStr{
-		"mode": dzhCore.Config.File.Mode,
+		"mode": dzhcore.Config.File.Mode,
 		"type": "local",
 	}
 	return

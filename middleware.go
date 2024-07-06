@@ -1,1 +1,1 @@
-package dzhCore
+package dzhcore

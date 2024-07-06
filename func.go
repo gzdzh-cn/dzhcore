@@ -1,4 +1,4 @@
-package dzhCore
+package dzhcore
 
 import (
 	"time"

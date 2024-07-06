@@ -1,4 +1,4 @@
-package dzhCore
+package dzhcore
 
 import (
 	_ "github.com/gogf/gf/contrib/nosql/redis/v2"
@@ -12,5 +12,5 @@ var (
 )
 
 func NewInit() {
-	glog.Debug(ctx, "------------ dzhCore NewInit ")
+	glog.Debug(ctx, "------------ dzhcore NewInit ")
 }

@@ -1,4 +1,4 @@
-package dzhCore
+package dzhcore
 
 import (
 	"github.com/gogf/gf/v2/database/gdb"

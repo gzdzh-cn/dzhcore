@@ -22,7 +22,7 @@ data/db.sqlite
 logs/
 public/uploads/
 gf
-data/dzhCore.sqlite
+data/dzhcore.sqlite
 lock.json
 *.sum
 go.work

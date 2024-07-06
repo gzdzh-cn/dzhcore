@@ -24,7 +24,7 @@ func NewFile() (d Driver) {
 	errorMsg := "\n"
 	errorMsg += `无法找到指定文件上传类型 "%s"`
 	errorMsg += `，您是否拼写错误了类型名称 "%s" 或者忘记导入上传支持包？`
-	errorMsg += `参考:https://github.com/dzhCore-team-official/dzhCore-admin-go/tree/master/contrib/files`
+	errorMsg += `参考:https://github.com/dzhcore-team-official/dzhcore-admin-go/tree/master/contrib/files`
 	err := gerror.Newf(errorMsg, coreconfig.Config.File.Mode, coreconfig.Config.File.Mode)
 
 	panic(err)

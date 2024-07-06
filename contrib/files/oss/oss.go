@@ -71,7 +71,7 @@ func (m *Oss) Upload(ctx g.Ctx) (string, error) {
 		return "上传失败", err
 	}
 
-	url := fmt.Sprintf("https://%s.%s/%s", m.Bucket.BucketName, dzhCore.Config.File.Oss.Endpoint, fullPath)
+	url := fmt.Sprintf("https://%s.%s/%s", m.Bucket.BucketName, dzhcore.Config.File.Oss.Endpoint, fullPath)
 
 	return url, nil
 }
@@ -114,7 +114,7 @@ func (m *Oss) UploadFile(ctx g.Ctx, filePath string) (string, error) {
 		gfile.Remove(filePath)
 	}
 
-	url := fmt.Sprintf("https://%s.%s/%s", m.Bucket.BucketName, dzhCore.Config.File.Oss.Endpoint, fullPath)
+	url := fmt.Sprintf("https://%s.%s/%s", m.Bucket.BucketName, dzhcore.Config.File.Oss.Endpoint, fullPath)
 
 	return url, nil
 }
@@ -170,13 +170,13 @@ func downLoadToLocal(ctx g.Ctx, filePath string) (string, error) {
 
 func New() corefile.Driver {
 	ctx := context.Background()
-	if dzhCore.Config.File.Mode != "oss" {
+	if dzhcore.Config.File.Mode != "oss" {
 		return nil
 	}
-	endpoint := dzhCore.Config.File.Oss.Endpoint
-	accessKeyID := dzhCore.Config.File.Oss.AccessKeyID
-	secretAccessKey := dzhCore.Config.File.Oss.SecretAccessKey
-	bucketName := dzhCore.Config.File.Oss.BucketName
+	endpoint := dzhcore.Config.File.Oss.Endpoint
+	accessKeyID := dzhcore.Config.File.Oss.AccessKeyID
+	secretAccessKey := dzhcore.Config.File.Oss.SecretAccessKey
+	bucketName := dzhcore.Config.File.Oss.BucketName
 	// Initialize oss client object.
 	client, err := oss.New(endpoint, accessKeyID, secretAccessKey)
 	if err != nil {

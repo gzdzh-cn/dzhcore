@@ -1,4 +1,4 @@
-package dzhCore
+package dzhcore
 
 // Join 类型
 const (
