@@ -5,6 +5,9 @@
 
 ## 修改记录
 
+v1.1.1
+- 修改bug
+
 v1.1.0
 - 修改ok返回自定义msg
 - 修改FillInitData的逻辑

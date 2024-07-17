@@ -24,7 +24,7 @@ type IService interface {
 }
 
 type Service struct {
-	Dao                IDao
+	Dao                *IDao
 	Model              IModel
 	ListQueryOp        *QueryOp
 	PageQueryOp        *QueryOp
@@ -441,8 +441,8 @@ func (s *Service) ModifyAfter(ctx context.Context, method string, param g.MapStr
 //	return s.Dao
 //}
 
-func NewService(dao IDao) *Service {
-	return &Service{
-		Dao: dao,
-	}
-}
+//func NewService(dao IDao) *Service {
+//	return &Service{
+//		Dao: &dao,
+//	}
+//}
