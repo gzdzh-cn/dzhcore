@@ -4,7 +4,7 @@ package mysql
 import (
 	"github.com/gogf/gf/v2/os/gctx"
 	"github.com/gogf/gf/v2/os/glog"
-	"github.com/gzdzh/dzhcore/coredb"
+	"github.com/gzdzh-cn/dzhcore/coredb"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 

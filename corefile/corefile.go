@@ -3,7 +3,7 @@ package corefile
 import (
 	"github.com/gogf/gf/v2/errors/gerror"
 	"github.com/gogf/gf/v2/frame/g"
-	"github.com/gzdzh/dzhcore/coreconfig"
+	"github.com/gzdzh-cn/dzhcore/coreconfig"
 )
 
 type Driver interface {

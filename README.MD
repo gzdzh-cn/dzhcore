@@ -3,11 +3,20 @@
 > 基于 cooladmin 二开版本
 > 这里要感谢作者李栋
 
-## 修改记录
+## 依赖
+```shell
+go get -u github.com/gzdzh-cn/dzhcore
+```
+
+## Documentation
+
+https://pkg.go.dev/github.com/gzdzh-cn/dzhcore
+
+## 更新日志
 
 v1.1.4
 - 自增id改为雪花ID
-- 
+
 v1.1.3
 - 修改bug
 

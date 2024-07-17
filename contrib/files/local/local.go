@@ -2,8 +2,8 @@
 package local
 
 import (
-	"github.com/gzdzh/dzhcore"
-	"github.com/gzdzh/dzhcore/corefile"
+	"github.com/gzdzh-cn/dzhcore"
+	"github.com/gzdzh-cn/dzhcore/corefile"
 
 	"github.com/gogf/gf/v2/errors/gerror"
 	"github.com/gogf/gf/v2/frame/g"

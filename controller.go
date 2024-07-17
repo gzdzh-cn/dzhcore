@@ -11,7 +11,7 @@ import (
 	"github.com/gogf/gf/v2/net/ghttp"
 	"github.com/gogf/gf/v2/text/gstr"
 	"github.com/gogf/gf/v2/util/gconv"
-	"github.com/gzdzh/dzhcore/coreconfig"
+	"github.com/gzdzh-cn/dzhcore/coreconfig"
 )
 
 type IController interface {

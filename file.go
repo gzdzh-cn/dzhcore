@@ -1,6 +1,6 @@
 package dzhcore
 
-import "github.com/gzdzh/dzhcore/corefile"
+import "github.com/gzdzh-cn/dzhcore/corefile"
 
 var (
 	File = corefile.NewFile // File 文件上传操作

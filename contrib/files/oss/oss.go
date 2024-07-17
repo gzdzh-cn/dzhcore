@@ -16,8 +16,8 @@ import (
 	"github.com/gogf/gf/v2/os/gtime"
 	"github.com/gogf/gf/v2/text/gstr"
 	"github.com/gogf/gf/v2/util/grand"
-	"github.com/gzdzh/dzhcore"
-	"github.com/gzdzh/dzhcore/corefile"
+	"github.com/gzdzh-cn/dzhcore"
+	"github.com/gzdzh-cn/dzhcore/corefile"
 )
 
 var (

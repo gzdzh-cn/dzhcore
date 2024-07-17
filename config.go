@@ -1,6 +1,6 @@
 package dzhcore
 
-import "github.com/gzdzh/dzhcore/coreconfig"
+import "github.com/gzdzh-cn/dzhcore/coreconfig"
 
 var (
 	Version           = "v1.1.0"

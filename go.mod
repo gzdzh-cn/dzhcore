@@ -1,4 +1,4 @@
-module github.com/gzdzh/dzhcore
+module github.com/gzdzh-cn/dzhcore
 
 go 1.21.8
 

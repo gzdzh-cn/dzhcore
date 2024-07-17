@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/gogf/gf/v2/container/garray"
-	"github.com/gzdzh/dzhcore/coredb"
+	"github.com/gzdzh-cn/dzhcore/coredb"
 
 	"github.com/gogf/gf/v2/encoding/gjson"
 	"github.com/gogf/gf/v2/errors/gerror"
