@@ -184,8 +184,10 @@ func RegisterController(c IController) {
 		return
 	}
 	if coreconfig.Config.Eps {
-		dao := sController.Service.GetDao()
-		columns := getModelInfo(ctx, sController.Prefix, dao)
+		//dao := sController.Service.GetDao()
+		//columns := getModelInfo(ctx, sController.Prefix, dao)
+		model := sController.Service.GetModel()
+		columns := getModelInfo(ctx, sController.Prefix, model)
 		ModelInfo[sController.Prefix] = columns
 	}
 	g.Server().Group(
@@ -210,10 +212,9 @@ type ColumnInfo struct {
 var ModelInfo = make(map[string][]*ColumnInfo)
 
 // getModelInfo 获取模型信息
-func getModelInfo(ctx g.Ctx, perfix string, dao IDao) (columns []*ColumnInfo) {
+func getModelInfo(ctx g.Ctx, prefix string, model IModel) (columns []*ColumnInfo) {
 
-	//fields, err := g.DB(model.GroupName()).TableFields(ctx, model.TableName())
-	fields, err := dao.Ctx(ctx).TableFields(dao.Table())
+	fields, err := g.DB(model.GroupName()).TableFields(ctx, model.TableName())
 	if err != nil {
 		panic(err)
 	}
