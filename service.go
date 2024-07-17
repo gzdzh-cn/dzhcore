@@ -19,18 +19,13 @@ type IService interface {
 	ServicePage(ctx context.Context, req *PageReq) (data interface{}, err error)     // 分页
 	ModifyBefore(ctx context.Context, method string, param g.MapStrAny) (err error)  // 新增|删除|修改前的操作
 	ModifyAfter(ctx context.Context, method string, param g.MapStrAny) (err error)   // 新增|删除|修改后的操作
+	GetModel() IModel
 	GetDao() IDao
-}
-
-type IDao interface {
-	DB() gdb.DB
-	Table() string
-	Group() string
-	Ctx(ctx context.Context) *gdb.Model
 }
 
 type Service struct {
 	Dao                IDao
+	Model              IModel
 	ListQueryOp        *QueryOp
 	PageQueryOp        *QueryOp
 	InsertParam        func(ctx context.Context) g.MapStrAny // Add时插入参数
@@ -54,6 +49,7 @@ type QueryOp struct {
 
 // 关联查询
 type JoinOp struct {
+	Dao       IDao
 	Model     IModel   // 关联的model
 	Alias     string   // 别名
 	Condition string   // 关联条件
@@ -81,7 +77,7 @@ func (s *Service) ServiceAdd(ctx context.Context, req *AddReq) (data interface{}
 	if s.UniqueKey != nil {
 		for k, v := range s.UniqueKey {
 			if rmap[k] != nil {
-				m := s.Dao.Ctx(ctx)
+				m := DBM(s.Model)
 				count, err := m.Where(k, rmap[k]).Count()
 				if err != nil {
 					return nil, err
@@ -101,7 +97,7 @@ func (s *Service) ServiceAdd(ctx context.Context, req *AddReq) (data interface{}
 			}
 		}
 	}
-	m := s.Dao.Ctx(ctx)
+	m := DBM(s.Model)
 	// 创建雪花算法节点
 	node, err := snowflake.NewNode(1) // 1 是节点的ID
 	if err != nil {
@@ -122,7 +118,7 @@ func (s *Service) ServiceAdd(ctx context.Context, req *AddReq) (data interface{}
 // 删除
 func (s *Service) ServiceDelete(ctx context.Context, req *DeleteReq) (data interface{}, err error) {
 	ids := g.RequestFromCtx(ctx).Get("ids").Slice()
-	m := s.Dao.Ctx(ctx)
+	m := DBM(s.Model)
 	data, err = m.WhereIn("id", ids).Delete()
 
 	return
@@ -139,7 +135,7 @@ func (s *Service) ServiceUpdate(ctx context.Context, req *UpdateReq) (data inter
 	if s.UniqueKey != nil {
 		for k, v := range s.UniqueKey {
 			if rmap[k] != nil {
-				count, err := s.Dao.Ctx(ctx).Where(k, rmap[k]).WhereNot("id", rmap["id"]).Count()
+				count, err := DBM(s.Model).Where(k, rmap[k]).WhereNot("id", rmap["id"]).Count()
 				if err != nil {
 					return nil, err
 				}
@@ -150,9 +146,8 @@ func (s *Service) ServiceUpdate(ctx context.Context, req *UpdateReq) (data inter
 			}
 		}
 	}
-	m := s.Dao.Ctx(ctx)
+	m := DBM(s.Model)
 	_, err = m.Data(rmap).Where("id", rmap["id"]).Update()
-
 	return
 }
 
@@ -163,10 +158,10 @@ func (s *Service) ServiceInfo(ctx context.Context, req *InfoReq) (data interface
 			return
 		}
 	}
-	m := s.Dao.Ctx(ctx)
+	m := DBM(s.Model)
 	// 如果InfoIgnoreProperty不为空 则忽略相关字段
 	if len(s.InfoIgnoreProperty) > 0 {
-		m = m.FieldsEx(s.InfoIgnoreProperty)
+		m.FieldsEx(s.InfoIgnoreProperty)
 	}
 	data, err = m.Clone().Where("id", req.Id).One()
 
@@ -181,28 +176,28 @@ func (s *Service) ServiceList(ctx context.Context, req *ListReq) (data interface
 		}
 	}
 	r := g.RequestFromCtx(ctx)
-	m := s.Dao.Ctx(ctx)
+	m := DBM(s.Model)
 
 	// 如果 req.Order 和 req.Sort 均不为空 则添加排序
 	if !r.Get("order").IsEmpty() && !r.Get("sort").IsEmpty() {
-		m = m.Order(r.Get("order").String() + " " + r.Get("sort").String())
+		m.Order(r.Get("order").String() + " " + r.Get("sort").String())
 		// m.OrderDesc("orderNum")
 	}
 	// 如果 ListQueryOp 不为空 则使用 ListQueryOp 进行查询
 	if s.ListQueryOp != nil {
 		if Select := s.ListQueryOp.Select; Select != "" {
-			m = m.Fields(Select)
+			m.Fields(Select)
 		}
 		// 如果Join不为空 则添加Join
 		if len(s.ListQueryOp.Join) > 0 {
 			for _, join := range s.ListQueryOp.Join {
 				switch join.Type {
 				case LeftJoin:
-					m = m.LeftJoin(join.Model.TableName(), join.Condition).As(join.Alias)
+					m.LeftJoin(join.Model.TableName(), join.Condition).As(join.Alias)
 				case RightJoin:
-					m = m.RightJoin(join.Model.TableName(), join.Condition).As(join.Alias)
+					m.RightJoin(join.Model.TableName(), join.Condition).As(join.Alias)
 				case InnerJoin:
-					m = m.InnerJoin(join.Model.TableName(), join.Condition).As(join.Alias)
+					m.InnerJoin(join.Model.TableName(), join.Condition).As(join.Alias)
 				}
 			}
 		}
@@ -211,7 +206,7 @@ func (s *Service) ServiceList(ctx context.Context, req *ListReq) (data interface
 		if len(s.ListQueryOp.FieldEQ) > 0 {
 			for _, field := range s.ListQueryOp.FieldEQ {
 				if !r.Get(field).IsEmpty() {
-					m = m.Where(field, r.Get(field))
+					m.Where(field, r.Get(field))
 				}
 			}
 		}
@@ -233,14 +228,14 @@ func (s *Service) ServiceList(ctx context.Context, req *ListReq) (data interface
 				for _, v := range where {
 					if len(v) == 3 {
 						if gconv.Bool(v[2]) {
-							m = m.Where(v[0], v[1])
+							m.Where(v[0], v[1])
 						}
 					}
 					if len(v) == 2 {
-						m = m.Where(v[0], v[1])
+						m.Where(v[0], v[1])
 					}
 					if len(v) == 1 {
-						m = m.Where(v[0])
+						m.Where(v[0])
 					}
 				}
 			}
@@ -252,13 +247,13 @@ func (s *Service) ServiceList(ctx context.Context, req *ListReq) (data interface
 		// 如果 addOrderby 不为空 则添加排序
 		if len(s.ListQueryOp.AddOrderby) > 0 && r.Get("order").IsEmpty() && r.Get("sort").IsEmpty() {
 			for field, order := range s.ListQueryOp.AddOrderby {
-				m = m.Order(field, order)
+				m.Order(field, order)
 			}
 		}
 	}
 
 	// 增加默认数据限制，防止查询所有数据
-	m = m.Limit(10000)
+	m.Limit(10000)
 
 	result, err := m.All()
 	if err != nil {
@@ -296,7 +291,7 @@ func (s *Service) ServicePage(ctx context.Context, req *PageReq) (data interface
 		req.Page = 1
 	}
 
-	m := s.Dao.Ctx(ctx)
+	m := DBM(s.Model)
 
 	// 如果pageQueryOp不为空 则使用pageQueryOp进行查询
 	if s.PageQueryOp != nil {
@@ -306,11 +301,11 @@ func (s *Service) ServicePage(ctx context.Context, req *PageReq) (data interface
 			for _, join := range s.PageQueryOp.Join {
 				switch join.Type {
 				case LeftJoin:
-					m = m.LeftJoin(join.Model.TableName(), join.Condition).As(join.Alias)
+					m.LeftJoin(join.Model.TableName(), join.Condition).As(join.Alias)
 				case RightJoin:
-					m = m.RightJoin(join.Model.TableName(), join.Condition).As(join.Alias)
+					m.RightJoin(join.Model.TableName(), join.Condition).As(join.Alias)
 				case InnerJoin:
-					m = m.InnerJoin(join.Model.TableName(), join.Condition).As(join.Alias)
+					m.InnerJoin(join.Model.TableName(), join.Condition).As(join.Alias)
 				}
 			}
 		}
@@ -318,7 +313,7 @@ func (s *Service) ServicePage(ctx context.Context, req *PageReq) (data interface
 		if len(s.PageQueryOp.FieldEQ) > 0 {
 			for _, field := range s.PageQueryOp.FieldEQ {
 				if !r.Get(field).IsEmpty() {
-					m = m.Where(field, r.Get(field))
+					m.Where(field, r.Get(field))
 				}
 			}
 		}
@@ -329,7 +324,7 @@ func (s *Service) ServicePage(ctx context.Context, req *PageReq) (data interface
 				for _, field := range s.PageQueryOp.KeyWordField {
 					builder = builder.WhereOrLike(field, "%"+r.Get("keyWord").String()+"%")
 				}
-				m = m.Where(builder)
+				m.Where(builder)
 			}
 		}
 
@@ -340,14 +335,14 @@ func (s *Service) ServicePage(ctx context.Context, req *PageReq) (data interface
 				for _, v := range where {
 					if len(v) == 3 {
 						if gconv.Bool(v[2]) {
-							m = m.Where(v[0], v[1])
+							m.Where(v[0], v[1])
 						}
 					}
 					if len(v) == 2 {
-						m = m.Where(v[0], v[1])
+						m.Where(v[0], v[1])
 					}
 					if len(v) == 1 {
-						m = m.Where(v[0])
+						m.Where(v[0])
 					}
 				}
 			}
@@ -361,7 +356,7 @@ func (s *Service) ServicePage(ctx context.Context, req *PageReq) (data interface
 		// 如果 addOrderby 不为空 则添加排序
 		if len(s.PageQueryOp.AddOrderby) > 0 && r.Get("order").IsEmpty() && r.Get("sort").IsEmpty() {
 			for field, order := range s.PageQueryOp.AddOrderby {
-				m = m.Order(field, order)
+				m.Order(field, order)
 			}
 		}
 	}
@@ -373,19 +368,19 @@ func (s *Service) ServicePage(ctx context.Context, req *PageReq) (data interface
 	}
 	if s.PageQueryOp != nil {
 		if Select := s.PageQueryOp.Select; Select != "" {
-			m = m.Fields(Select)
+			m.Fields(Select)
 		}
 	}
 	// 如果 req.Order 和 req.Sort 均不为空 则添加排序
 	if !r.Get("order").IsEmpty() && !r.Get("sort").IsEmpty() {
-		m = m.Order(r.Get("order").String() + " " + r.Get("sort").String())
+		m.Order(r.Get("order").String() + " " + r.Get("sort").String())
 	}
 
 	// 如果req.IsExport为true 则导出数据
 	if req.IsExport {
 		// 如果req.MaxExportSize大于0 则限制导出数据的最大条数
 		if req.MaxExportLimit > 0 {
-			m = m.Limit(req.MaxExportLimit)
+			m.Limit(req.MaxExportLimit)
 		}
 		result, err := m.All()
 		if err != nil {
@@ -441,10 +436,10 @@ func (s *Service) ModifyAfter(ctx context.Context, method string, param g.MapStr
 	return
 }
 
-// 获取dao
-func (s *Service) GetDao() IDao {
-	return s.Dao
-}
+//// 获取dao
+//func (s *Service) GetDao() IDao {
+//	return s.Dao
+//}
 
 func NewService(dao IDao) *Service {
 	return &Service{

@@ -12,5 +12,8 @@ var (
 )
 
 func NewInit() {
+	SetVersions("dzhcore", Version)
 	glog.Debug(ctx, "------------ dzhcore NewInit ")
+	glog.Debugf(ctx, "------------ dzhcore version: %v ", Version)
+
 }

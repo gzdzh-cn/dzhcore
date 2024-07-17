@@ -21,7 +21,7 @@ var (
 	RunMode      = "dev"                     // 定义全局运行模式
 	IsRedisMode  = false                     // 定义全局是否为redis模式
 	I18n         = gi18n.New()               // 定义全局国际化对象
-	Version      = g.Map{}                   // 全部版本
+	Versions     = g.Map{}                   // 全部版本
 )
 
 func init() {
@@ -69,12 +69,18 @@ type BaseRes struct {
 }
 
 // Ok 返回正常结果
-func Ok(data interface{}) *BaseRes {
+func Ok(data interface{}, message ...string) *BaseRes {
 
+	var msg string
+	if len(msg) == 0 {
+		msg = "BaseResMessage" // 默认值
+	} else {
+		msg = message[0]
+	}
 	return &BaseRes{
 		Code:    1000,
-		Message: I18n.Translate(context.TODO(), "BaseResMessage"),
 		Data:    data,
+		Message: I18n.Translate(context.TODO(), msg),
 	}
 }
 
@@ -96,14 +102,14 @@ func Fail(message string) *BaseRes {
 
 // 存储版本
 func SetVersions(name string, v string) {
-	Version[name] = v
+	Versions[name] = v
 }
 
 // 获取版本
 func GetVersions(name string) interface{} {
 	if name == "all" {
-		return Version
+		return Versions
 	} else {
-		return Version[name]
+		return Versions[name]
 	}
 }
