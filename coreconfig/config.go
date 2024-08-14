@@ -34,7 +34,7 @@ func newConfig() *sConfig {
 		Eps:         GetCfgWithDefault(ctx, "core.eps", g.NewVar(false)).Bool(),
 		File: &file{
 			Mode:   GetCfgWithDefault(ctx, "core.file.mode", g.NewVar("none")).String(),
-			Domain: GetCfgWithDefault(ctx, "core.file.domain", g.NewVar("http://127.0.0.1:8300")).String(),
+			Domain: GetCfgWithDefault(ctx, "core.file.domain", g.NewVar("http://127.0.0.1:8200")).String(),
 			Oss: &oss{
 				Endpoint:        GetCfgWithDefault(ctx, "core.file.oss.endpoint", g.NewVar("127.0.0.1:9000")).String(),
 				AccessKeyID:     GetCfgWithDefault(ctx, "core.file.oss.accessKeyID", g.NewVar("")).String(),

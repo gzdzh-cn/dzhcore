@@ -14,6 +14,11 @@ https://pkg.go.dev/github.com/gzdzh-cn/dzhcore
 
 ## 更新日志
 
+v1.1.5
+- 增加工具函数
+- 接口查询，id转换为数字
+- service的PageQueryOp和ListQueryOp增加As参数
+
 v1.1.4
 - 自增id改为雪花ID
 

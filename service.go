@@ -2,7 +2,6 @@ package dzhcore
 
 import (
 	"context"
-	"github.com/bwmarrin/snowflake"
 	"github.com/gogf/gf/v2/container/garray"
 	"github.com/gogf/gf/v2/database/gdb"
 	"github.com/gogf/gf/v2/errors/gerror"
@@ -42,6 +41,7 @@ type QueryOp struct {
 	AddOrderby   g.MapStrStr                                   // 添加排序
 	Where        func(ctx context.Context) []g.Array           // 自定义条件
 	Select       string                                        // 查询字段,多个字段用逗号隔开 如: id,name  或  a.id,a.name,b.name AS bname
+	As           string                                        //主表别名
 	Join         []*JoinOp                                     // 关联查询
 	Extend       func(ctx g.Ctx, m *gdb.Model) *gdb.Model      // 追加其他条件
 	ModifyResult func(ctx g.Ctx, data interface{}) interface{} // 修改结果
@@ -98,13 +98,7 @@ func (s *Service) ServiceAdd(ctx context.Context, req *AddReq) (data interface{}
 		}
 	}
 	m := DBM(s.Model)
-	// 创建雪花算法节点
-	node, err := snowflake.NewNode(1) // 1 是节点的ID
-	if err != nil {
-		g.Log().Error(ctx, err)
-	}
-
-	rmap["id"] = node.Generate()
+	rmap["id"] = NodeSnowflake.Generate().String()
 	_, err = m.Insert(rmap)
 	if err != nil {
 		return
@@ -147,7 +141,7 @@ func (s *Service) ServiceUpdate(ctx context.Context, req *UpdateReq) (data inter
 		}
 	}
 	m := DBM(s.Model)
-	_, err = m.Data(rmap).Where("id", rmap["id"]).Update()
+	_, err = m.Data(rmap).Where("id", gconv.String(rmap["id"])).Update()
 	return
 }
 
@@ -163,7 +157,7 @@ func (s *Service) ServiceInfo(ctx context.Context, req *InfoReq) (data interface
 	if len(s.InfoIgnoreProperty) > 0 {
 		m.FieldsEx(s.InfoIgnoreProperty)
 	}
-	data, err = m.Clone().Where("id", req.Id).One()
+	data, err = m.Clone().Where("id", gconv.String(req.Id)).One()
 
 	return
 }
@@ -185,6 +179,10 @@ func (s *Service) ServiceList(ctx context.Context, req *ListReq) (data interface
 	}
 	// 如果 ListQueryOp 不为空 则使用 ListQueryOp 进行查询
 	if s.ListQueryOp != nil {
+		//主表别名
+		if s.ListQueryOp.As != "" {
+			m.As(s.ListQueryOp.As)
+		}
 		if Select := s.ListQueryOp.Select; Select != "" {
 			m.Fields(Select)
 		}
@@ -295,7 +293,10 @@ func (s *Service) ServicePage(ctx context.Context, req *PageReq) (data interface
 
 	// 如果pageQueryOp不为空 则使用pageQueryOp进行查询
 	if s.PageQueryOp != nil {
-
+		//主表别名
+		if s.PageQueryOp.As != "" {
+			m.As(s.PageQueryOp.As)
+		}
 		// 如果Join不为空 则添加Join
 		if len(s.PageQueryOp.Join) > 0 {
 			for _, join := range s.PageQueryOp.Join {

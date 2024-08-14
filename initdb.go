@@ -5,7 +5,6 @@ import (
 
 	"github.com/gogf/gf/v2/database/gdb"
 
-	"github.com/bwmarrin/snowflake"
 	"strings"
 
 	"github.com/gogf/gf/v2/container/garray"
@@ -80,14 +79,9 @@ func FillInitData(ctx g.Ctx, moduleName string, model IModel) {
 	// 模块第一次写入数据
 	if value.IsEmpty() {
 
-		// 创建雪花算法节点
-		node, err := snowflake.NewNode(1) // 1 是节点的ID
-		if err != nil {
-			g.Log().Error(ctx, err)
-		}
-
+		id := NodeSnowflake.Generate().String()
 		if err = updateData(ctx, mInit, moduleName, model); err == nil {
-			_, err = mInit.Insert(g.Map{"id": node.Generate(), "group": model.GroupName(), "module": moduleName, "tables": model.TableName()})
+			_, err = mInit.Insert(g.Map{"id": id, "group": model.GroupName(), "module": moduleName, "tables": model.TableName()})
 			if err != nil {
 				g.Log().Error(ctx, err.Error())
 			}
