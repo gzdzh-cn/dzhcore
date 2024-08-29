@@ -1,44 +1,103 @@
 package util
 
 import (
-	"encoding/json"
-	"fmt"
-	"io"
-	"net/http"
-	"strings"
+	"context"
+	"github.com/gogf/gf/v2/frame/g"
+	"github.com/gogf/gf/v2/os/gctx"
+	"github.com/gogf/gf/v2/util/gconv"
+	"github.com/gzdzh-cn/dzhcore/common"
+	"github.com/gzdzh-cn/dzhcore/utility/util/logger"
 )
 
-// const API_KEY = "b3URo8wVBaUTbQyZENVXrrUz"
-// const SECRET_KEY = "f5cRL3G1oaRW8ds24ysPiluiLtliNed0"
+var ctx = gctx.GetInitCtx()
 
-/**
- * 使用 AK，SK 生成鉴权签名（Access Token）
- * @return string 鉴权签名信息（Access Token）
- */
-func GetAccessToken(API_KEY string, SECRET_KEY string) string {
+// 清理orm缓存
+func ClearOrmCache(ctx context.Context, key string) {
 
-	url := "https://aip.baidubce.com/oauth/2.0/token"
-	postData := fmt.Sprintf("grant_type=client_credentials&client_id=%s&client_secret=%s", API_KEY, SECRET_KEY)
-	resp, err := http.Post(url, "application/x-www-form-urlencoded", strings.NewReader(postData))
+	_, err := common.CacheManager.Remove(ctx, "SelectCache:"+key)
 	if err != nil {
-		fmt.Println(err)
-		return ""
+		g.Log().Error(ctx, err)
+		return
 	}
-	defer func(Body io.ReadCloser) {
-		err = Body.Close()
-		if err != nil {
 
+}
+
+// GetValueOrDefault
+//
+//	@Description: 给定一个interface，如果是nil或空，则返回false
+//	@param value
+//	@param defaultValue
+//	@return interface{}
+func GetValueOrDefault(value interface{}) bool {
+
+	if value == nil {
+		return false
+	}
+
+	// 使用类型断言判断是否为空值
+	switch v := value.(type) {
+	case string:
+		if v == "" {
+			return false
 		}
-	}(resp.Body)
-	body, err := io.ReadAll(resp.Body)
+	case int:
+		if v == 0 {
+			return false
+		}
+	case []interface{}:
+		if len(v) == 0 {
+			return false
+		}
+	// 可以根据需要添加更多类型的检查
+	default:
+		// 其他类型不为空的情况
+		return true
+	}
+
+	// 如果不是空值，返回原值
+	return true
+}
+
+// GetMySQLVersion
+//
+//	@Description: 获取mysql版本
+//	@return string
+func GetMySQLVersion() string {
+
+	type result struct {
+		Version string `json:"version"`
+	}
+	var res *result
+	err := g.DB().Raw("SELECT VERSION() as version").Scan(&res)
+
 	if err != nil {
-		fmt.Println(err)
+		logger.Error(ctx, err.Error())
 		return ""
 	}
-	accessTokenObj := map[string]string{}
-	err = json.Unmarshal([]byte(body), &accessTokenObj)
-	if err != nil {
-		return ""
+
+	return res.Version
+}
+
+// 配置信息
+func GetConfig(v ...interface{}) string {
+
+	if len(v) == 1 {
+		data, err := g.Cfg().Get(ctx, gconv.String(v[0]))
+		if err != nil {
+			logger.Error(ctx, err.Error())
+			return ""
+		}
+		return data.String()
 	}
-	return accessTokenObj["access_token"]
+
+	return ""
+}
+
+// 获取版本
+func GetVersions(name string) interface{} {
+	if name == "all" {
+		return common.Versions
+	} else {
+		return common.Versions[name]
+	}
 }

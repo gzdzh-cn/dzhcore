@@ -3,27 +3,26 @@ package dzhcore
 import (
 	"context"
 	"github.com/bwmarrin/snowflake"
-	"github.com/gzdzh-cn/dzhcore/utility/util"
-	"gorm.io/gorm"
-
 	"github.com/gogf/gf/i18n/gi18n"
+	"github.com/gogf/gf/util/guid"
 	"github.com/gogf/gf/v2/database/gredis"
 	"github.com/gogf/gf/v2/frame/g"
 	"github.com/gogf/gf/v2/os/gbuild"
 	"github.com/gogf/gf/v2/os/gcache"
 	"github.com/gogf/gf/v2/os/gctx"
-	"github.com/gogf/gf/v2/util/guid"
+	"github.com/gzdzh-cn/dzhcore/common"
+	"gorm.io/gorm"
 )
 
 var (
 	GormDBS       = make(map[string]*gorm.DB) // 定义全局gorm.DB对象集合 仅供内部使用
 	CacheEPS      = gcache.New()              // 定义全局缓存对象	供EPS使用
-	CacheManager  = gcache.New()              // 定义全局缓存对象	供其他业务使用
+	CacheManager  = common.CacheManager       // 定义全局缓存对象	供其他业务使用
 	ProcessFlag   = guid.S()                  // 定义全局进程标识
 	RunMode       = "dev"                     // 定义全局运行模式
 	IsRedisMode   = false                     // 定义全局是否为redis模式
 	I18n          = gi18n.New()               // 定义全局国际化对象
-	Versions      = g.Map{}                   // 全部版本
+	Versions      = common.Versions           // 全部版本
 	NodeSnowflake *snowflake.Node
 )
 
@@ -32,7 +31,7 @@ func init() {
 		ctx         = gctx.GetInitCtx()
 		redisConfig = &gredis.Config{}
 	)
-	NodeSnowflake = util.CreateSnowflake(ctx) //雪花节点创建
+	NodeSnowflake = CreateSnowflake(ctx) //雪花节点创建
 
 	g.Log().Debug(ctx, "module core init start ...")
 	buildData := gbuild.Data()
@@ -117,4 +116,14 @@ func GetVersions(name string) interface{} {
 	} else {
 		return Versions[name]
 	}
+}
+
+// 雪花
+func CreateSnowflake(ctx context.Context) *snowflake.Node {
+	node, err := snowflake.NewNode(1) // 1 是节点的ID
+	if err != nil {
+		g.Log().Error(ctx, err.Error())
+	}
+
+	return node
 }

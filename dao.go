@@ -10,4 +10,6 @@ type IDao interface {
 	Table() string
 	Group() string
 	Ctx(ctx context.Context) *gdb.Model
+	//Columns()
+	Transaction(ctx context.Context, f func(ctx context.Context, tx gdb.TX) error) (err error)
 }

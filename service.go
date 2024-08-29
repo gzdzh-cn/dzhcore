@@ -145,6 +145,7 @@ func (s *Service) ServiceUpdate(ctx context.Context, req *UpdateReq) (data inter
 	return
 }
 
+// 查询
 func (s *Service) ServiceInfo(ctx context.Context, req *InfoReq) (data interface{}, err error) {
 	if s.Before != nil {
 		err = s.Before(ctx)
@@ -162,6 +163,7 @@ func (s *Service) ServiceInfo(ctx context.Context, req *InfoReq) (data interface
 	return
 }
 
+// 列表
 func (s *Service) ServiceList(ctx context.Context, req *ListReq) (data interface{}, err error) {
 	if s.Before != nil {
 		err = s.Before(ctx)
@@ -270,6 +272,7 @@ func (s *Service) ServiceList(ctx context.Context, req *ListReq) (data interface
 	return
 }
 
+// 分页列表
 func (s *Service) ServicePage(ctx context.Context, req *PageReq) (data interface{}, err error) {
 
 	var (
@@ -293,10 +296,12 @@ func (s *Service) ServicePage(ctx context.Context, req *PageReq) (data interface
 
 	// 如果pageQueryOp不为空 则使用pageQueryOp进行查询
 	if s.PageQueryOp != nil {
+
 		//主表别名
 		if s.PageQueryOp.As != "" {
 			m.As(s.PageQueryOp.As)
 		}
+
 		// 如果Join不为空 则添加Join
 		if len(s.PageQueryOp.Join) > 0 {
 			for _, join := range s.PageQueryOp.Join {
@@ -349,11 +354,6 @@ func (s *Service) ServicePage(ctx context.Context, req *PageReq) (data interface
 			}
 		}
 
-		// 如果PageQueryOp的Extend不为空 则执行Extend
-		if s.PageQueryOp.Extend != nil {
-			m = s.PageQueryOp.Extend(ctx, m)
-		}
-
 		// 如果 addOrderby 不为空 则添加排序
 		if len(s.PageQueryOp.AddOrderby) > 0 && r.Get("order").IsEmpty() && r.Get("sort").IsEmpty() {
 			for field, order := range s.PageQueryOp.AddOrderby {
@@ -367,10 +367,17 @@ func (s *Service) ServicePage(ctx context.Context, req *PageReq) (data interface
 	if err != nil {
 		return nil, err
 	}
+
 	if s.PageQueryOp != nil {
 		if Select := s.PageQueryOp.Select; Select != "" {
 			m.Fields(Select)
 		}
+
+		// 如果PageQueryOp的Extend不为空 则执行Extend
+		if s.PageQueryOp.Extend != nil {
+			m = s.PageQueryOp.Extend(ctx, m)
+		}
+
 	}
 	// 如果 req.Order 和 req.Sort 均不为空 则添加排序
 	if !r.Get("order").IsEmpty() && !r.Get("sort").IsEmpty() {
@@ -423,6 +430,7 @@ func (s *Service) ServicePage(ctx context.Context, req *PageReq) (data interface
 			data = s.PageQueryOp.ModifyResult(ctx, data)
 		}
 	}
+
 	return
 }
 
@@ -434,6 +442,12 @@ func (s *Service) ModifyBefore(ctx context.Context, method string, param g.MapSt
 
 // 新增|删除|修改后的操作
 func (s *Service) ModifyAfter(ctx context.Context, method string, param g.MapStrAny) (err error) {
+
+	//cache := g.Cfg().MustGet(ctx, "core.cache")
+	//if cache.String() != "" {
+	//	//清理缓存
+	//	util.ClearOrmCache(ctx, "clues")
+	//}
 	return
 }
 
