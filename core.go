@@ -58,9 +58,15 @@ func init() {
 		CacheManager.SetAdapter(gcache.NewAdapterRedis(redis))
 		IsRedisMode = true
 	}
+
 	g.Log().Debug(ctx, "当前运行模式", RunMode)
 	g.Log().Debug(ctx, "当前实例ID:", ProcessFlag)
 	g.Log().Debug(ctx, "是否缓存模式:", IsRedisMode)
+
+	SetVersions("dzhcore", Version)
+	g.Log().Debug(ctx, "------------ dzhcore NewInit ")
+	g.Log().Debugf(ctx, "------------ dzhcore version:%v", Version)
+
 	g.Log().Debug(ctx, "module core init finished ...")
 
 }

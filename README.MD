@@ -14,6 +14,12 @@ https://pkg.go.dev/github.com/gzdzh-cn/dzhcore
 
 ## 更新日志
 
+v1.1.7 
+- 更改依赖顺序
+
+v1.1.6 2024年8月29日
+- 更新工具函数
+
 v1.1.5
 - 增加工具函数
 - 接口查询，id转换为数字
