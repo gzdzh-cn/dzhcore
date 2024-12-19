@@ -12,6 +12,11 @@ go get -u github.com/gzdzh-cn/dzhcore
 
 https://pkg.go.dev/github.com/gzdzh-cn/dzhcore
 
+### 计划更新
+- [父类使用dao]
+- [增加前置和后置函数可以影响req传参，从而影响update，add，delete]
+- [父类入参增加自定义验证]
+
 ## 更新日志
 
 v1.1.7 
