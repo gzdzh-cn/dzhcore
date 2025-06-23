@@ -8,10 +8,9 @@
 
 ```go
 import (
-    _ "dzhgo/contrib/drivers/mysql"
+    "github.com/gzdzh-cn/dzhcore/contrib/drivers/mysql"
 
-    // 换行然后再入模块包,防止编辑器自动排序导致引入顺序错乱
-    _ "dzhgo/modules/base"
+  
 
 )
 ```

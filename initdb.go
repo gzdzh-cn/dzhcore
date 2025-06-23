@@ -1,6 +1,7 @@
 package dzhcore
 
 import (
+	"github.com/gogf/gf/v2/os/gctx"
 	"gorm.io/gorm"
 
 	"github.com/gogf/gf/v2/database/gdb"
@@ -15,6 +16,24 @@ import (
 	"github.com/gogf/gf/v2/frame/g"
 	"github.com/gogf/gf/v2/os/gres"
 )
+
+var (
+	ctx    = gctx.GetInitCtx()
+	Models []IModel
+)
+
+// IModel数组
+func AddModel(model IModel) {
+	Models = append(Models, model)
+}
+
+func InitModels() {
+	g.Log().Debugf(ctx, "InitModels,数量： %v", len(Models))
+	for _, model := range Models {
+		g.Log().Debugf(ctx, "model: %v", model.TableName())
+		CreateTable(model)
+	}
+}
 
 // InitDB 初始化数据库连接供gorm使用
 func InitDB(group string) (*gorm.DB, error) {
@@ -78,15 +97,13 @@ func FillInitData(ctx g.Ctx, moduleName string, model IModel) {
 
 	// 模块第一次写入数据
 	if value.IsEmpty() {
-
 		id := NodeSnowflake.Generate().String()
 		if err = updateData(ctx, mInit, moduleName, model); err == nil {
+			g.Log().Debugf(ctx, "分组 %v,模块 %v 中的表 %v，第一次写入", model.GroupName(), moduleName, model.TableName())
 			_, err = mInit.Insert(g.Map{"id": id, "group": model.GroupName(), "module": moduleName, "tables": model.TableName()})
 			if err != nil {
 				g.Log().Error(ctx, err.Error())
 			}
-			g.Log().Debugf(ctx, "分组 %v,模块 %v 中的表 %v，第一次写入", model.GroupName(), moduleName, model.TableName())
-
 		}
 		return
 	}
@@ -101,19 +118,16 @@ func FillInitData(ctx g.Ctx, moduleName string, model IModel) {
 
 	//更新写入
 	if err = updateData(ctx, mInit, moduleName, model); err == nil {
-
+		g.Log().Debugf(ctx, "分组 %v, 模块 %v 中的表 %v, 写入 ", model.GroupName(), moduleName, model.TableName())
 		tableGarry.Append(model.TableName())
 		str := strings.Join(tableGarry.Slice(), ",")
 		_, err := mInit.Where("group", model.GroupName()).Where("module", moduleName).Data(g.Map{"tables": str}).Update()
 		if err != nil {
 			return
 		}
-		g.Log().Debugf(ctx, "分组 %v, 模块 %v 中的表 %v, 写入 ", model.GroupName(), moduleName, model.TableName())
-
 	}
 
 	g.Log().Debugf(ctx, "分组 %v, 模块 %v 中的表 %v, 初始化完成 ", model.GroupName(), moduleName, model.TableName())
-	return
 }
 
 // 写入文件

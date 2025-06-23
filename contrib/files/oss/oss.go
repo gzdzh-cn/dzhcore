@@ -1,13 +1,12 @@
 package oss
 
 import (
-	"context"
 	"fmt"
-	"github.com/gogf/gf/v2/os/gctx"
-	"github.com/gogf/gf/v2/os/glog"
 	"io"
 	"net/http"
 	"os"
+
+	"github.com/gogf/gf/v2/os/gctx"
 
 	"github.com/aliyun/aliyun-oss-go-sdk/oss"
 	"github.com/gogf/gf/v2/errors/gerror"
@@ -21,8 +20,7 @@ import (
 )
 
 var (
-	// ctx          g.Ctx
-	ossDriverObj = New()
+	ctx = gctx.GetInitCtx()
 )
 
 type Oss struct {
@@ -30,8 +28,64 @@ type Oss struct {
 	Bucket *oss.Bucket
 }
 
-func (m *Oss) New() corefile.Driver {
-	return m
+func NewInit() {
+	g.Log().Debug(ctx, "------------ oss NewInit start")
+	var (
+		err          error
+		driverNames  = g.SliceStr{"oss"}
+		ossDriverObj = New()
+	)
+
+	if err != nil {
+		panic(err)
+	}
+
+	for _, driverName := range driverNames {
+		if err = corefile.Register(driverName, ossDriverObj); err != nil {
+			panic(err)
+		}
+	}
+
+	g.Log().Debug(ctx, "------------ oss NewInit end")
+}
+
+func New() corefile.Driver {
+
+	if dzhcore.Config.File.Mode != "oss" {
+		return nil
+	}
+	endpoint := dzhcore.Config.File.Oss.Endpoint
+	accessKeyID := dzhcore.Config.File.Oss.AccessKeyID
+	secretAccessKey := dzhcore.Config.File.Oss.SecretAccessKey
+	bucketName := dzhcore.Config.File.Oss.BucketName
+	// Initialize oss client object.
+	client, err := oss.New(endpoint, accessKeyID, secretAccessKey)
+	if err != nil {
+		g.Log().Fatal(ctx, err)
+		return nil
+	}
+
+	exist, err := client.IsBucketExist(bucketName)
+
+	if err != nil {
+		g.Log().Fatal(ctx, err)
+		return nil
+	}
+
+	if exist {
+		g.Log().Debug(ctx, fmt.Sprintf("存储桶%s已存在", bucketName))
+	} else {
+		// 创建存储桶
+		err = client.CreateBucket(bucketName)
+		if err != nil {
+			g.Log().Fatal(ctx, err)
+			return nil
+		}
+		g.Log().Debug(ctx, fmt.Sprintf("存储桶%s创建成功", bucketName))
+	}
+
+	bucket, _ := client.Bucket(bucketName)
+	return &Oss{Client: client, Bucket: bucket}
 }
 
 func (m *Oss) GetMode() (data interface{}, err error) {
@@ -119,6 +173,10 @@ func (m *Oss) UploadFile(ctx g.Ctx, filePath string) (string, error) {
 	return url, nil
 }
 
+func (m *Oss) New() corefile.Driver {
+	return m
+}
+
 // 下载网络图片到系统临时本地文件夹
 func downLoadToLocal(ctx g.Ctx, filePath string) (string, error) {
 
@@ -166,65 +224,4 @@ func downLoadToLocal(ctx g.Ctx, filePath string) (string, error) {
 
 	return fullPath, nil
 
-}
-
-func New() corefile.Driver {
-	ctx := context.Background()
-	if dzhcore.Config.File.Mode != "oss" {
-		return nil
-	}
-	endpoint := dzhcore.Config.File.Oss.Endpoint
-	accessKeyID := dzhcore.Config.File.Oss.AccessKeyID
-	secretAccessKey := dzhcore.Config.File.Oss.SecretAccessKey
-	bucketName := dzhcore.Config.File.Oss.BucketName
-	// Initialize oss client object.
-	client, err := oss.New(endpoint, accessKeyID, secretAccessKey)
-	if err != nil {
-		g.Log().Fatal(ctx, err)
-		return nil
-	}
-
-	exist, err := client.IsBucketExist(bucketName)
-
-	if err != nil {
-		g.Log().Fatal(ctx, err)
-		return nil
-	}
-
-	if exist {
-		g.Log().Debug(ctx, fmt.Sprintf("存储桶%s已存在", bucketName))
-	} else {
-		// 创建存储桶
-		err = client.CreateBucket(bucketName)
-		if err != nil {
-			g.Log().Fatal(ctx, err)
-			return nil
-		}
-		g.Log().Debug(ctx, fmt.Sprintf("存储桶%s创建成功", bucketName))
-	}
-
-	bucket, _ := client.Bucket(bucketName)
-	return &Oss{Client: client, Bucket: bucket}
-}
-
-var (
-	ctx = gctx.GetInitCtx()
-)
-
-func init() {
-	glog.Debug(ctx, "------------ oss")
-	var (
-		err         error
-		driverNames = g.SliceStr{"oss"}
-	)
-
-	if err != nil {
-		panic(err)
-	}
-
-	for _, driverName := range driverNames {
-		if err = corefile.Register(driverName, ossDriverObj); err != nil {
-			panic(err)
-		}
-	}
 }

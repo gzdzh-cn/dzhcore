@@ -2,11 +2,14 @@ package dzhcore
 
 import (
 	"context"
+	"fmt"
 	"github.com/gogf/gf/v2/container/garray"
 	"github.com/gogf/gf/v2/database/gdb"
 	"github.com/gogf/gf/v2/errors/gerror"
 	"github.com/gogf/gf/v2/frame/g"
+	"github.com/gogf/gf/v2/text/gstr"
 	"github.com/gogf/gf/v2/util/gconv"
+	"time"
 )
 
 type IService interface {
@@ -18,6 +21,7 @@ type IService interface {
 	ServicePage(ctx context.Context, req *PageReq) (data interface{}, err error)     // 分页
 	ModifyBefore(ctx context.Context, method string, param g.MapStrAny) (err error)  // 新增|删除|修改前的操作
 	ModifyAfter(ctx context.Context, method string, param g.MapStrAny) (err error)   // 新增|删除|修改后的操作
+	CacheDo(ctx context.Context, method string, param g.MapStrAny) (err error)       // 处理 db 缓存
 	GetModel() IModel
 	GetDao() IDao
 }
@@ -40,6 +44,7 @@ type QueryOp struct {
 	KeyWordField []string                                      // 模糊搜索匹配的数据库字段
 	AddOrderby   g.MapStrStr                                   // 添加排序
 	Where        func(ctx context.Context) []g.Array           // 自定义条件
+	OrWhere      func(ctx context.Context) []g.Array           // 自定义条件
 	Select       string                                        // 查询字段,多个字段用逗号隔开 如: id,name  或  a.id,a.name,b.name AS bname
 	As           string                                        //主表别名
 	Join         []*JoinOp                                     // 关联查询
@@ -97,7 +102,8 @@ func (s *Service) ServiceAdd(ctx context.Context, req *AddReq) (data interface{}
 			}
 		}
 	}
-	m := DBM(s.Model)
+	//m := DBM(s.Model)
+	m := DDAO(s.Dao, ctx)
 	rmap["id"] = NodeSnowflake.Generate().String()
 	_, err = m.Insert(rmap)
 	if err != nil {
@@ -112,7 +118,8 @@ func (s *Service) ServiceAdd(ctx context.Context, req *AddReq) (data interface{}
 // 删除
 func (s *Service) ServiceDelete(ctx context.Context, req *DeleteReq) (data interface{}, err error) {
 	ids := g.RequestFromCtx(ctx).Get("ids").Slice()
-	m := DBM(s.Model)
+	//m := DBM(s.Model)
+	m := DDAO(s.Dao, ctx)
 	data, err = m.WhereIn("id", ids).Delete()
 
 	return
@@ -140,7 +147,8 @@ func (s *Service) ServiceUpdate(ctx context.Context, req *UpdateReq) (data inter
 			}
 		}
 	}
-	m := DBM(s.Model)
+	//m := DBM(s.Model)
+	m := DDAO(s.Dao, ctx)
 	_, err = m.Data(rmap).Where("id", gconv.String(rmap["id"])).Update()
 	return
 }
@@ -153,13 +161,13 @@ func (s *Service) ServiceInfo(ctx context.Context, req *InfoReq) (data interface
 			return
 		}
 	}
-	m := DBM(s.Model)
+	//m := DBM(s.Model)
+	m := DDAO(s.Dao, ctx)
 	// 如果InfoIgnoreProperty不为空 则忽略相关字段
 	if len(s.InfoIgnoreProperty) > 0 {
 		m.FieldsEx(s.InfoIgnoreProperty)
 	}
 	data, err = m.Clone().Where("id", gconv.String(req.Id)).One()
-
 	return
 }
 
@@ -172,32 +180,32 @@ func (s *Service) ServiceList(ctx context.Context, req *ListReq) (data interface
 		}
 	}
 	r := g.RequestFromCtx(ctx)
-	m := DBM(s.Model)
+	//m := DBM(s.Model)
+	m := DDAO(s.Dao, ctx)
 
 	// 如果 req.Order 和 req.Sort 均不为空 则添加排序
 	if !r.Get("order").IsEmpty() && !r.Get("sort").IsEmpty() {
-		m.Order(r.Get("order").String() + " " + r.Get("sort").String())
-		// m.OrderDesc("orderNum")
+		m = m.Order(r.Get("order").String() + " " + r.Get("sort").String())
 	}
 	// 如果 ListQueryOp 不为空 则使用 ListQueryOp 进行查询
 	if s.ListQueryOp != nil {
 		//主表别名
 		if s.ListQueryOp.As != "" {
-			m.As(s.ListQueryOp.As)
+			m = m.As(s.ListQueryOp.As)
 		}
 		if Select := s.ListQueryOp.Select; Select != "" {
-			m.Fields(Select)
+			m = m.Fields(Select)
 		}
 		// 如果Join不为空 则添加Join
 		if len(s.ListQueryOp.Join) > 0 {
 			for _, join := range s.ListQueryOp.Join {
 				switch join.Type {
 				case LeftJoin:
-					m.LeftJoin(join.Model.TableName(), join.Condition).As(join.Alias)
+					m = m.LeftJoin(join.Model.TableName(), join.Condition).As(join.Alias)
 				case RightJoin:
-					m.RightJoin(join.Model.TableName(), join.Condition).As(join.Alias)
+					m = m.RightJoin(join.Model.TableName(), join.Condition).As(join.Alias)
 				case InnerJoin:
-					m.InnerJoin(join.Model.TableName(), join.Condition).As(join.Alias)
+					m = m.InnerJoin(join.Model.TableName(), join.Condition).As(join.Alias)
 				}
 			}
 		}
@@ -206,7 +214,7 @@ func (s *Service) ServiceList(ctx context.Context, req *ListReq) (data interface
 		if len(s.ListQueryOp.FieldEQ) > 0 {
 			for _, field := range s.ListQueryOp.FieldEQ {
 				if !r.Get(field).IsEmpty() {
-					m.Where(field, r.Get(field))
+					m = m.Where(field, r.Get(field))
 				}
 			}
 		}
@@ -215,11 +223,9 @@ func (s *Service) ServiceList(ctx context.Context, req *ListReq) (data interface
 			if len(s.ListQueryOp.KeyWordField) > 0 {
 				builder := m.Builder()
 				for _, field := range s.ListQueryOp.KeyWordField {
-
-					// builder.WhereLike(field, "%"+r.Get("keyWord").String()+"%")
 					builder = builder.WhereOrLike(field, "%"+r.Get("keyWord").String()+"%")
 				}
-				m.Where(builder)
+				m = m.Where(builder)
 			}
 		}
 		if s.ListQueryOp.Where != nil {
@@ -228,14 +234,14 @@ func (s *Service) ServiceList(ctx context.Context, req *ListReq) (data interface
 				for _, v := range where {
 					if len(v) == 3 {
 						if gconv.Bool(v[2]) {
-							m.Where(v[0], v[1])
+							m = m.Where(v[0], v[1])
 						}
 					}
 					if len(v) == 2 {
-						m.Where(v[0], v[1])
+						m = m.Where(v[0], v[1])
 					}
 					if len(v) == 1 {
-						m.Where(v[0])
+						m = m.Where(v[0])
 					}
 				}
 			}
@@ -247,13 +253,13 @@ func (s *Service) ServiceList(ctx context.Context, req *ListReq) (data interface
 		// 如果 addOrderby 不为空 则添加排序
 		if len(s.ListQueryOp.AddOrderby) > 0 && r.Get("order").IsEmpty() && r.Get("sort").IsEmpty() {
 			for field, order := range s.ListQueryOp.AddOrderby {
-				m.Order(field, order)
+				m = m.Order(field, order)
 			}
 		}
 	}
 
 	// 增加默认数据限制，防止查询所有数据
-	m.Limit(10000)
+	m = m.Limit(10000)
 
 	result, err := m.All()
 	if err != nil {
@@ -276,8 +282,9 @@ func (s *Service) ServiceList(ctx context.Context, req *ListReq) (data interface
 func (s *Service) ServicePage(ctx context.Context, req *PageReq) (data interface{}, err error) {
 
 	var (
-		r     = g.RequestFromCtx(ctx)
-		total = 0
+		r            = g.RequestFromCtx(ctx)
+		total        = 0
+		dbRedisSlice g.SliceAny
 	)
 
 	type pagination struct {
@@ -291,15 +298,15 @@ func (s *Service) ServicePage(ctx context.Context, req *PageReq) (data interface
 	if req.Page <= 0 {
 		req.Page = 1
 	}
-
-	m := DBM(s.Model)
-
+	dbRedisSlice = append(dbRedisSlice, []any{r.Router.Uri, req.Page, req.Size}...)
+	//m := DBM(s.Model)
+	m := DDAO(s.Dao, ctx)
 	// 如果pageQueryOp不为空 则使用pageQueryOp进行查询
 	if s.PageQueryOp != nil {
 
 		//主表别名
 		if s.PageQueryOp.As != "" {
-			m.As(s.PageQueryOp.As)
+			m = m.As(s.PageQueryOp.As)
 		}
 
 		// 如果Join不为空 则添加Join
@@ -307,11 +314,11 @@ func (s *Service) ServicePage(ctx context.Context, req *PageReq) (data interface
 			for _, join := range s.PageQueryOp.Join {
 				switch join.Type {
 				case LeftJoin:
-					m.LeftJoin(join.Model.TableName(), join.Condition).As(join.Alias)
+					m = m.LeftJoin(join.Model.TableName(), join.Condition).As(join.Alias)
 				case RightJoin:
-					m.RightJoin(join.Model.TableName(), join.Condition).As(join.Alias)
+					m = m.RightJoin(join.Model.TableName(), join.Condition).As(join.Alias)
 				case InnerJoin:
-					m.InnerJoin(join.Model.TableName(), join.Condition).As(join.Alias)
+					m = m.InnerJoin(join.Model.TableName(), join.Condition).As(join.Alias)
 				}
 			}
 		}
@@ -319,104 +326,137 @@ func (s *Service) ServicePage(ctx context.Context, req *PageReq) (data interface
 		if len(s.PageQueryOp.FieldEQ) > 0 {
 			for _, field := range s.PageQueryOp.FieldEQ {
 				if !r.Get(field).IsEmpty() {
-					m.Where(field, r.Get(field))
+					m = m.Where(field, r.Get(field))
 				}
 			}
 		}
 		// 如果KeyWordField不为空 则添加查询条件
-		if !r.Get("keyWord").IsEmpty() {
-			if len(s.PageQueryOp.KeyWordField) > 0 {
-				builder := m.Builder()
-				for _, field := range s.PageQueryOp.KeyWordField {
-					builder = builder.WhereOrLike(field, "%"+r.Get("keyWord").String()+"%")
+		if !r.Get("keyWord").IsEmpty() || s.PageQueryOp.OrWhere != nil {
+			builder := m.Builder()
+			if !r.Get("keyWord").IsEmpty() {
+				if len(s.PageQueryOp.KeyWordField) > 0 {
+					for _, field := range s.PageQueryOp.KeyWordField {
+						builder = builder.WhereOrLike(field, "%"+r.Get("keyWord").String()+"%")
+					}
 				}
-				m.Where(builder)
 			}
+
+			if s.PageQueryOp.OrWhere != nil {
+				where := s.PageQueryOp.OrWhere(ctx)
+				if len(where) > 0 {
+					var (
+						whereSlice []string
+						whereStr   string
+					)
+					for _, v := range where {
+						if len(v) == 3 {
+							if gconv.Bool(v[2]) {
+								whereSlice = append(whereSlice, fmt.Sprintf("%s-%s", v[0], v[1]))
+							}
+						}
+						if len(v) == 2 {
+							whereSlice = append(whereSlice, fmt.Sprintf("%s-%s", v[0], v[1]))
+						}
+						if len(v) == 1 {
+							whereSlice = append(whereSlice, fmt.Sprintf("%s", v[0]))
+						}
+					}
+					whereStr = gstr.Join(whereSlice, "OR")
+					builder = builder.WhereOr(whereStr)
+				}
+			}
+			m = m.Where(builder)
+			dbRedisSlice = append(dbRedisSlice, gstr.Trim(r.Get("keyWord").String()))
 		}
 
 		// 加入where条件
 		if s.PageQueryOp.Where != nil {
 			where := s.PageQueryOp.Where(ctx)
+			var whereSlice []string
 			if len(where) > 0 {
 				for _, v := range where {
 					if len(v) == 3 {
 						if gconv.Bool(v[2]) {
-							m.Where(v[0], v[1])
+							m = m.Where(v[0], v[1])
+							whereSlice = append(whereSlice, fmt.Sprintf("%s-%s", v[0], v[1]))
 						}
 					}
 					if len(v) == 2 {
-						m.Where(v[0], v[1])
+						m = m.Where(v[0], v[1])
+						whereSlice = append(whereSlice, fmt.Sprintf("%s-%s", v[0], v[1]))
 					}
 					if len(v) == 1 {
-						m.Where(v[0])
+						m = m.Where(v[0])
+						whereSlice = append(whereSlice, fmt.Sprintf("%s", v[0]))
 					}
 				}
 			}
+
+			whereStr := gstr.Replace(gstr.JoinAny(whereSlice, "#"), " ", "&&")
+			dbRedisSlice = append(dbRedisSlice, whereStr)
 		}
 
 		// 如果 addOrderby 不为空 则添加排序
 		if len(s.PageQueryOp.AddOrderby) > 0 && r.Get("order").IsEmpty() && r.Get("sort").IsEmpty() {
+			addOrderby := ""
 			for field, order := range s.PageQueryOp.AddOrderby {
-				m.Order(field, order)
+				m = m.Order(field, order)
+				addOrderby += fmt.Sprintf("%s-%s", field, order)
 			}
+			dbRedisSlice = append(dbRedisSlice, addOrderby)
 		}
 	}
-
-	// 统计总数
-	total, err = m.Clone().Count()
-	if err != nil {
-		return nil, err
-	}
+	dbRedisKey := gstr.JoinAny(dbRedisSlice, "/")
+	//cachValue := g.DB().GetCache().MustGet(ctx, dbRedisKey)
+	//g.Log().Infof(ctx, "cachValue:%v", cachValue)
+	//g.DB().GetCore().ClearCacheAll(ctx)
 
 	if s.PageQueryOp != nil {
 		if Select := s.PageQueryOp.Select; Select != "" {
-			m.Fields(Select)
+			m = m.Fields(Select)
 		}
-
 		// 如果PageQueryOp的Extend不为空 则执行Extend
 		if s.PageQueryOp.Extend != nil {
 			m = s.PageQueryOp.Extend(ctx, m)
 		}
-
 	}
+
 	// 如果 req.Order 和 req.Sort 均不为空 则添加排序
 	if !r.Get("order").IsEmpty() && !r.Get("sort").IsEmpty() {
-		m.Order(r.Get("order").String() + " " + r.Get("sort").String())
+		order := r.Get("order").String() + " " + r.Get("sort").String()
+		m = m.Order(order)
+		dbRedisSlice = append(dbRedisSlice, gstr.Replace(order, " ", "-"))
+	}
+
+	dbRedisKey = gstr.JoinAny(dbRedisSlice, "/")
+
+	if DbRedisEnable {
+		m = m.Cache(gdb.CacheOption{
+			Duration: time.Duration(DbExpire),
+			Name:     dbRedisKey,
+			Force:    false,
+		})
+	}
+	var result []gdb.Record
+	result, total, err = m.Offset((req.Page - 1) * req.Size).Limit(req.Size).AllAndCount(false)
+	if err != nil {
+		return nil, err
 	}
 
 	// 如果req.IsExport为true 则导出数据
 	if req.IsExport {
 		// 如果req.MaxExportSize大于0 则限制导出数据的最大条数
 		if req.MaxExportLimit > 0 {
-			m.Limit(req.MaxExportLimit)
-		}
-		result, err := m.All()
-		if err != nil {
-			return nil, err
+			m = m.Limit(req.MaxExportLimit)
 		}
 		data = g.Map{
 			"list":  result,
 			"total": total,
 		}
-		return data, nil
-	}
-
-	result, err := m.Offset((req.Page - 1) * req.Size).Limit(req.Size).All()
-	if err != nil {
-		return nil, err
-	}
-	if result != nil {
-		data = g.Map{
-			"list": result,
-			"pagination": pagination{
-				Page:  req.Page,
-				Size:  req.Size,
-				Total: total,
-			},
-		}
+		//return data, nil
 	} else {
 		data = g.Map{
-			"list": garray.New(),
+			"list": result,
 			"pagination": pagination{
 				Page:  req.Page,
 				Size:  req.Size,
@@ -431,23 +471,41 @@ func (s *Service) ServicePage(ctx context.Context, req *PageReq) (data interface
 		}
 	}
 
-	return
+	return data, nil
 }
 
 // 新增|删除|修改前的操作
 func (s *Service) ModifyBefore(ctx context.Context, method string, param g.MapStrAny) (err error) {
-	// g.Log().Debugf(ctx, "ModifyBefore: %s", method)
 	return
 }
 
 // 新增|删除|修改后的操作
 func (s *Service) ModifyAfter(ctx context.Context, method string, param g.MapStrAny) (err error) {
+	return
+}
 
-	//cache := g.Cfg().MustGet(ctx, "core.cache")
-	//if cache.String() != "" {
-	//	//清理缓存
-	//	util.ClearOrmCache(ctx, "clues")
-	//}
+// db 缓存处理
+func (s *Service) CacheDo(ctx context.Context, method string, param g.MapStrAny) (err error) {
+
+	var (
+		r             = g.RequestFromCtx(ctx)
+		containsSlice = g.Slice{}
+	)
+	keys, err := DbCacheManager.KeyStrings(ctx)
+	if err != nil {
+		return err
+	}
+	for _, key := range keys {
+		keyStr := gconv.String(key)
+		contains := gstr.Contains(keyStr, gstr.StrTillEx(keyStr, r.Router.Uri))
+		if contains {
+			containsSlice = append(containsSlice, keyStr)
+		}
+	}
+	err = DbCacheManager.Removes(ctx, containsSlice)
+	if err != nil {
+		return err
+	}
 	return
 }
 
@@ -463,7 +521,6 @@ func (s *Service) GetDao() IDao {
 
 func NewModelService(model IModel) *Service {
 	return &Service{
-
 		Model: model,
 	}
 }

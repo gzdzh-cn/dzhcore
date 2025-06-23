@@ -2,6 +2,7 @@
 package local
 
 import (
+	"github.com/gogf/gf/v2/os/gctx"
 	"github.com/gzdzh-cn/dzhcore"
 	"github.com/gzdzh-cn/dzhcore/corefile"
 
@@ -11,7 +12,18 @@ import (
 	"github.com/gogf/gf/v2/os/gtime"
 )
 
+var (
+	ctx = gctx.GetInitCtx()
+)
+
 type Local struct {
+}
+
+func New() corefile.Driver {
+	return &Local{}
+}
+func (l *Local) New() corefile.Driver {
+	return &Local{}
 }
 
 func (l *Local) Upload(ctx g.Ctx) (string, error) {
@@ -42,15 +54,9 @@ func (l *Local) GetMode() (data interface{}, err error) {
 	return
 }
 
-func (l *Local) New() corefile.Driver {
-	return &Local{}
-}
+func NewInit() {
+	g.Log().Debug(ctx, "------------ local NewInit start")
 
-func New() corefile.Driver {
-	return &Local{}
-}
-
-func init() {
 	var (
 		err         error
 		driverObj   = New()
@@ -69,4 +75,10 @@ func init() {
 		}
 	}
 	s.AddStaticPath("/public", "./public")
+
+	g.Log().Debug(ctx, "------------ local NewInit end")
+}
+
+func init() {
+
 }

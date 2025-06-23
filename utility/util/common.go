@@ -1,26 +1,15 @@
 package util
 
 import (
-	"context"
+	"os"
+	"strings"
+
 	"github.com/gogf/gf/v2/frame/g"
 	"github.com/gogf/gf/v2/os/gctx"
 	"github.com/gogf/gf/v2/util/gconv"
-	"github.com/gzdzh-cn/dzhcore/common"
-	"github.com/gzdzh-cn/dzhcore/utility/util/logger"
 )
 
 var ctx = gctx.GetInitCtx()
-
-// 清理orm缓存
-func ClearOrmCache(ctx context.Context, key string) {
-
-	_, err := common.CacheManager.Remove(ctx, "SelectCache:"+key)
-	if err != nil {
-		g.Log().Error(ctx, err)
-		return
-	}
-
-}
 
 // GetValueOrDefault
 //
@@ -58,20 +47,35 @@ func GetValueOrDefault(value interface{}) bool {
 	return true
 }
 
-// GetMySQLVersion
+// GetDatabaseVersion
 //
 //	@Description: 获取mysql版本
 //	@return string
-func GetMySQLVersion() string {
+func GetDBVersion() string {
+
+	dbType := g.Cfg().MustGet(ctx, "database.default.type")
 
 	type result struct {
 		Version string `json:"version"`
 	}
 	var res *result
-	err := g.DB().Raw("SELECT VERSION() as version").Scan(&res)
+	query := ""
+	switch strings.ToLower(dbType.String()) {
+	case "mysql":
+		query = "SELECT VERSION() as version"
+	case "sqlite":
+		query = "SELECT sqlite_version() as version"
+	case "pgsql":
+		query = "SELECT version() as version"
+	default:
+		g.Log().Warningf(ctx, "unsupported database type for version retrieval: %s", dbType.String())
+		return ""
+	}
+
+	err := g.DB().Raw(query).Scan(&res)
 
 	if err != nil {
-		logger.Error(ctx, err.Error())
+		g.Log().Error(ctx, err.Error())
 		return ""
 	}
 
@@ -84,7 +88,7 @@ func GetConfig(v ...interface{}) string {
 	if len(v) == 1 {
 		data, err := g.Cfg().Get(ctx, gconv.String(v[0]))
 		if err != nil {
-			logger.Error(ctx, err.Error())
+			g.Log().Error(ctx, err.Error())
 			return ""
 		}
 		return data.String()
@@ -93,11 +97,11 @@ func GetConfig(v ...interface{}) string {
 	return ""
 }
 
-// 获取版本
-func GetVersions(name string) interface{} {
-	if name == "all" {
-		return common.Versions
-	} else {
-		return common.Versions[name]
+// 获取 env 变量
+func Getenv(key string, defaultValue string) string {
+	value := os.Getenv(key)
+	if value == "" {
+		return defaultValue
 	}
+	return value
 }

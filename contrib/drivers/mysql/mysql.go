@@ -3,7 +3,6 @@ package mysql
 
 import (
 	"github.com/gogf/gf/v2/os/gctx"
-	"github.com/gogf/gf/v2/os/glog"
 	"github.com/gzdzh-cn/dzhcore/coredb"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
@@ -16,6 +15,13 @@ import (
 	"github.com/gogf/gf/v2/database/gdb"
 	"github.com/gogf/gf/v2/frame/g"
 	"github.com/gogf/gf/v2/text/gregex"
+)
+
+var (
+	ctx         = gctx.GetInitCtx()
+	err         error
+	driverObj   = NewMysql()
+	driverNames = g.SliceStr{"mysql", "mariadb", "tidb"}
 )
 
 type DriverMysql struct {
@@ -54,21 +60,13 @@ func (d *DriverMysql) GetConn(config *gdb.ConfigNode) (db *gorm.DB, err error) {
 	return gorm.Open(mysql.Open(source), &gorm.Config{})
 }
 
-var (
-	ctx = gctx.GetInitCtx()
-)
+func NewInit() {
 
-func init() {
-
-	glog.Debug(ctx, "------------ mysql")
-	var (
-		err         error
-		driverObj   = NewMysql()
-		driverNames = g.SliceStr{"mysql", "mariadb", "tidb"}
-	)
+	g.Log().Debug(ctx, "------------ mysql NewInit start ...")
 	for _, driverName := range driverNames {
 		if err = coredb.Register(driverName, driverObj); err != nil {
 			panic(err)
 		}
 	}
+	g.Log().Debug(ctx, "------------ mysql NewInit end ...")
 }

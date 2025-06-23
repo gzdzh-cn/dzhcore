@@ -11,7 +11,10 @@ import (
 	"github.com/gogf/gf/v2/net/ghttp"
 	"github.com/gogf/gf/v2/text/gstr"
 	"github.com/gogf/gf/v2/util/gconv"
-	"github.com/gzdzh-cn/dzhcore/coreconfig"
+)
+
+var (
+	Controllers []IController
 )
 
 type IController interface {
@@ -90,18 +93,25 @@ type PageReq struct {
 
 func (c *Controller) Add(ctx context.Context, req *AddReq) (res *BaseRes, err error) {
 	if garray.NewStrArrayFrom(c.Api).Contains("Add") {
-		err := c.Service.ModifyBefore(ctx, "Add", g.RequestFromCtx(ctx).GetMap())
-		if err != nil {
-			return nil, err
-		}
-
-		data, err := c.Service.ServiceAdd(ctx, req)
-		if err != nil {
-			return Fail(err.Error()), err
-		}
-		rmap := g.RequestFromCtx(ctx).GetMap()
-		rmap["id"] = gconv.Map(data)["id"]
-		err = c.Service.ModifyAfter(ctx, "Add", rmap)
+		var data interface{}
+		err = g.DB().Ctx(ctx).Transaction(ctx, func(ctx context.Context, tx gdb.TX) error {
+			err = c.Service.ModifyBefore(ctx, "Add", g.RequestFromCtx(ctx).GetMap())
+			if err != nil {
+				return err
+			}
+			if data, err = c.Service.ServiceAdd(ctx, req); err != nil {
+				return err
+			}
+			rmap := g.RequestFromCtx(ctx).GetMap()
+			rmap["id"] = gconv.Map(data)["id"]
+			if err = c.Service.ModifyAfter(ctx, "Add", rmap); err != nil {
+				return err
+			}
+			if err = c.Service.CacheDo(ctx, "Update", g.RequestFromCtx(ctx).GetMap()); err != nil {
+				return err
+			}
+			return err
+		})
 		if err != nil {
 			return Fail(err.Error()), err
 		}
@@ -112,18 +122,24 @@ func (c *Controller) Add(ctx context.Context, req *AddReq) (res *BaseRes, err er
 }
 func (c *Controller) Delete(ctx context.Context, req *DeleteReq) (res *BaseRes, err error) {
 	if garray.NewStrArrayFrom(c.Api).Contains("Delete") {
-		err := c.Service.ModifyBefore(ctx, "Delete", g.RequestFromCtx(ctx).GetMap())
-		if err != nil {
-			return nil, err
-		}
-
-		data, err := c.Service.ServiceDelete(ctx, req)
+		var data interface{}
+		err = g.DB().Ctx(ctx).Transaction(ctx, func(ctx context.Context, tx gdb.TX) error {
+			if err = c.Service.ModifyBefore(ctx, "Delete", g.RequestFromCtx(ctx).GetMap()); err != nil {
+				return err
+			}
+			if data, err = c.Service.ServiceDelete(ctx, req); err != nil {
+				return err
+			}
+			if err = c.Service.ModifyAfter(ctx, "Delete", g.RequestFromCtx(ctx).GetMap()); err != nil {
+				return err
+			}
+			if err = c.Service.CacheDo(ctx, "Delete", g.RequestFromCtx(ctx).GetMap()); err != nil {
+				return err
+			}
+			return err
+		})
 		if err != nil {
 			return Fail(err.Error()), err
-		}
-		err = c.Service.ModifyAfter(ctx, "Delete", g.RequestFromCtx(ctx).GetMap())
-		if err != nil {
-			return nil, err
 		}
 		return Ok(data), err
 	}
@@ -132,20 +148,28 @@ func (c *Controller) Delete(ctx context.Context, req *DeleteReq) (res *BaseRes, 
 }
 func (c *Controller) Update(ctx context.Context, req *UpdateReq) (res *BaseRes, err error) {
 	if garray.NewStrArrayFrom(c.Api).Contains("Update") {
-		err := c.Service.ModifyBefore(ctx, "Update", g.RequestFromCtx(ctx).GetMap())
-		if err != nil {
-			return nil, err
-		}
+		var data interface{}
+		err = g.DB().Ctx(ctx).Transaction(ctx, func(ctx context.Context, tx gdb.TX) error {
+			if err = c.Service.ModifyBefore(ctx, "Update", g.RequestFromCtx(ctx).GetMap()); err != nil {
+				return err
+			}
+			if data, err = c.Service.ServiceUpdate(ctx, req); err != nil {
+				return err
+			}
+			if err = c.Service.ModifyAfter(ctx, "Update", g.RequestFromCtx(ctx).GetMap()); err != nil {
+				return err
+			}
+			if err = c.Service.CacheDo(ctx, "Update", g.RequestFromCtx(ctx).GetMap()); err != nil {
+				return err
+			}
+			return err
+		})
 
-		data, err := c.Service.ServiceUpdate(ctx, req)
 		if err != nil {
 			return Fail(err.Error()), err
 		}
-		err = c.Service.ModifyAfter(ctx, "Update", g.RequestFromCtx(ctx).GetMap())
-		if err != nil {
-			return nil, err
-		}
 		return Ok(data), err
+
 	}
 	g.RequestFromCtx(ctx).Response.Status = 404
 	return nil, nil
@@ -175,6 +199,18 @@ func (c *Controller) Page(ctx context.Context, req *PageReq) (res *BaseRes, err 
 	return nil, nil
 }
 
+// 添加Controller到Controllers数组
+func AddController(c IController) {
+	Controllers = append(Controllers, c)
+}
+
+// 批量注册路由
+func RegisterControllers() {
+	for _, controller := range Controllers {
+		RegisterController(controller)
+	}
+}
+
 // RegisterController 注册控制器到路由
 func RegisterController(c IController) {
 	var ctx = context.Background()
@@ -183,7 +219,7 @@ func RegisterController(c IController) {
 	if err != nil {
 		return
 	}
-	if coreconfig.Config.Eps {
+	if Config.Eps {
 		//dao := sController.Service.GetDao()
 		//columns := getModelInfo(ctx, sController.Prefix, dao)
 		model := sController.Service.GetModel()

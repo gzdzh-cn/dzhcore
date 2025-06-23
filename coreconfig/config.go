@@ -1,6 +1,16 @@
 package coreconfig
 
-import "github.com/gogf/gf/v2/frame/g"
+import (
+	"github.com/gogf/gf/v2/frame/g"
+	"github.com/gogf/gf/v2/os/gctx"
+	"github.com/gzdzh-cn/dzhcore/utility/util"
+	"github.com/joho/godotenv"
+)
+
+var (
+	ctx    = gctx.GetInitCtx()
+	Config *sConfig
+)
 
 // core config
 type sConfig struct {
@@ -26,9 +36,18 @@ type file struct {
 	Oss    *oss   `json:"oss,omitempty"`
 }
 
+func init() {
+	err := godotenv.Load()
+	if err != nil {
+		g.Log().Debug(ctx, "未找到.env文件，使用默认环境变量")
+	}
+	Config = newConfig()
+
+}
+
 // NewConfig new config
 func newConfig() *sConfig {
-	var ctx g.Ctx
+
 	config := &sConfig{
 		AutoMigrate: GetCfgWithDefault(ctx, "core.autoMigrate", g.NewVar(false)).Bool(),
 		Eps:         GetCfgWithDefault(ctx, "core.eps", g.NewVar(false)).Bool(),
@@ -36,20 +55,17 @@ func newConfig() *sConfig {
 			Mode:   GetCfgWithDefault(ctx, "core.file.mode", g.NewVar("none")).String(),
 			Domain: GetCfgWithDefault(ctx, "core.file.domain", g.NewVar("http://127.0.0.1:8200")).String(),
 			Oss: &oss{
-				Endpoint:        GetCfgWithDefault(ctx, "core.file.oss.endpoint", g.NewVar("127.0.0.1:9000")).String(),
-				AccessKeyID:     GetCfgWithDefault(ctx, "core.file.oss.accessKeyID", g.NewVar("")).String(),
-				SecretAccessKey: GetCfgWithDefault(ctx, "core.file.oss.secretAccessKey", g.NewVar("")).String(),
-				UseSSL:          GetCfgWithDefault(ctx, "core.file.oss.useSSL", g.NewVar(false)).Bool(),
-				BucketName:      GetCfgWithDefault(ctx, "core.file.oss.bucketName", g.NewVar("core-admin-go")).String(),
-				Location:        GetCfgWithDefault(ctx, "core.file.oss.location", g.NewVar("us-east-1")).String(),
+				Endpoint:        util.Getenv("OSS_ENDPOINT", ""),
+				AccessKeyID:     util.Getenv("OSS_ACCESS_KEY_ID", ""),
+				SecretAccessKey: util.Getenv("OSS_SECRET_ACCESS_KEY", ""),
+				BucketName:      util.Getenv("OSS_BUCKET_NAME", ""),
+				UseSSL:          util.Getenv("OSS_USESSL", "false") == "true",
+				Location:        util.Getenv("OSS_LOCATION", ""),
 			},
 		},
 	}
 	return config
 }
-
-// Config config
-var Config = newConfig()
 
 // GetCfgWithDefault get config with default value
 func GetCfgWithDefault(ctx g.Ctx, key string, defaultValue *g.Var) *g.Var {

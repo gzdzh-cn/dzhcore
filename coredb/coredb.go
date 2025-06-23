@@ -9,6 +9,7 @@ import (
 // Driver 数据库驱动通用接口
 type Driver interface {
 	GetConn(node *gdb.ConfigNode) (db *gorm.DB, err error) // 获取数据库连接
+ 
 }
 
 var (
