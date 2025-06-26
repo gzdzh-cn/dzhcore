@@ -1,7 +1,10 @@
 package coreconfig
 
 import (
+	"strings"
+
 	"github.com/gogf/gf/v2/frame/g"
+	"github.com/gogf/gf/v2/os/gbuild"
 	"github.com/gogf/gf/v2/os/gctx"
 	"github.com/gzdzh-cn/dzhcore/utility/util"
 	"github.com/joho/godotenv"
@@ -10,6 +13,7 @@ import (
 var (
 	ctx    = gctx.GetInitCtx()
 	Config *sConfig
+	IsProd = false
 )
 
 // core config
@@ -37,6 +41,10 @@ type file struct {
 }
 
 func init() {
+	gbuildData := gbuild.Data()
+	if _, ok := gbuildData["builtTime"]; ok {
+		IsProd = true
+	}
 	err := godotenv.Load()
 	if err != nil {
 		g.Log().Debug(ctx, "未找到.env文件，使用默认环境变量")
@@ -55,12 +63,43 @@ func newConfig() *sConfig {
 			Mode:   GetCfgWithDefault(ctx, "core.file.mode", g.NewVar("none")).String(),
 			Domain: GetCfgWithDefault(ctx, "core.file.domain", g.NewVar("http://127.0.0.1:8200")).String(),
 			Oss: &oss{
-				Endpoint:        util.Getenv("OSS_ENDPOINT", ""),
-				AccessKeyID:     util.Getenv("OSS_ACCESS_KEY_ID", ""),
-				SecretAccessKey: util.Getenv("OSS_SECRET_ACCESS_KEY", ""),
-				BucketName:      util.Getenv("OSS_BUCKET_NAME", ""),
-				UseSSL:          util.Getenv("OSS_USESSL", "false") == "true",
-				Location:        util.Getenv("OSS_LOCATION", ""),
+				Endpoint: func() string {
+					if !IsProd {
+						return util.Getenv("OSS_ENDPOINT", GetCfgWithDefault(ctx, "core.file.oss.endpoint", g.NewVar("")).String())
+					}
+					return GetCfgWithDefault(ctx, "core.file.oss.endpoint", g.NewVar("")).String()
+				}(),
+				AccessKeyID: func() string {
+					if !IsProd {
+						return util.Getenv("OSS_ACCESS_KEY_ID", GetCfgWithDefault(ctx, "core.file.oss.accessKeyID", g.NewVar("")).String())
+					}
+					return GetCfgWithDefault(ctx, "core.file.oss.accessKeyID", g.NewVar("")).String()
+				}(),
+				SecretAccessKey: func() string {
+					if !IsProd {
+						return util.Getenv("OSS_SECRET_ACCESS_KEY", GetCfgWithDefault(ctx, "core.file.oss.secretAccessKey", g.NewVar("")).String())
+					}
+					return GetCfgWithDefault(ctx, "core.file.oss.secretAccessKey", g.NewVar("")).String()
+				}(),
+				BucketName: func() string {
+					if !IsProd {
+						return util.Getenv("OSS_BUCKET_NAME", GetCfgWithDefault(ctx, "core.file.oss.bucketName", g.NewVar("")).String())
+					}
+					return GetCfgWithDefault(ctx, "core.file.oss.bucketName", g.NewVar("")).String()
+				}(),
+				UseSSL: func() bool {
+					if !IsProd {
+						// 先从环境变量获取，若未设置则用配置文件
+						envVal := util.Getenv("OSS_USESSL", "")
+						if envVal != "" {
+							// 支持常见的布尔字符串
+							lower := strings.ToLower(envVal)
+							return lower == "1" || lower == "true" || lower == "yes" || lower == "on"
+						}
+					}
+					return GetCfgWithDefault(ctx, "core.file.oss.useSSL", g.NewVar(false)).Bool()
+				}(),
+				Location: util.Getenv("OSS_LOCATION", GetCfgWithDefault(ctx, "core.file.oss.location", g.NewVar("")).String()),
 			},
 		},
 	}

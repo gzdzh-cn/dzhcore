@@ -25,10 +25,22 @@ var (
 	I18n           = gi18n.New()               // 定义全局国际化对象
 	Versions       = g.Map{}                   // 版本列表
 	NodeSnowflake  *snowflake.Node             // 雪花
-	DbCacheManager = g.DB().GetCache()
+	DbCacheManager = gcache.New()
 	DbRedisEnable  = false // 开启db 查询结果使用 redis 缓存
 	DbExpire       int64
+	IsProd         = false
 )
+
+func init() {
+	gbuildData := gbuild.Data()
+	if _, ok := gbuildData["builtTime"]; ok {
+		g.Log().Warning(ctx, "生产环境")
+		IsProd = true
+	} else {
+		g.Log().Warning(ctx, "开发环境")
+		IsProd = false
+	}
+}
 
 func NewInit() {
 
@@ -38,13 +50,6 @@ func NewInit() {
 		ctx         = gctx.GetInitCtx()
 		redisConfig = &gredis.Config{}
 	)
-
-	gbuildData := gbuild.Data()
-	if _, ok := gbuildData["builtTime"]; ok {
-		g.Log().Warning(ctx, "生产环境")
-	} else {
-		g.Log().Warning(ctx, "开发环境")
-	}
 
 	SetVersions("dzhcore", Version)
 	NodeSnowflake = CreateSnowflake(ctx) //雪花节点创建

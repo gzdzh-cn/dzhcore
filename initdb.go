@@ -28,10 +28,12 @@ func AddModel(model IModel) {
 }
 
 func InitModels() {
-	g.Log().Debugf(ctx, "InitModels,数量： %v", len(Models))
-	for _, model := range Models {
-		g.Log().Debugf(ctx, "model: %v", model.TableName())
-		CreateTable(model)
+	if Config.AutoMigrate {
+		g.Log().Debugf(ctx, "InitModels,数量： %v", len(Models))
+		for _, model := range Models {
+			g.Log().Debugf(ctx, "model: %v", model.TableName())
+			CreateTable(model)
+		}
 	}
 }
 
@@ -79,11 +81,10 @@ func getDBbyModel(model IModel) *gorm.DB {
 
 // CreateTable 根据entity结构体创建表
 func CreateTable(model IModel) error {
-	if Config.AutoMigrate {
-		db := getDBbyModel(model)
-		return db.AutoMigrate(model)
-	}
-	return nil
+
+	db := getDBbyModel(model)
+	return db.AutoMigrate(model)
+
 }
 
 // FillInitData 数据库填充初始数据

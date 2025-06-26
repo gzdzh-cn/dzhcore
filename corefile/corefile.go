@@ -36,13 +36,3 @@ func Register(name string, driver Driver) error {
 	FileMap[name] = driver
 	return nil
 }
-
-// func init() {
-// 	// Register("local", &Local{})
-// 	// Register("oss", &Oss{})
-// 	file, err := NewFile()
-// 	if err != nil {
-// 		panic(err)
-// 	}
-// 	File = file
-// }
