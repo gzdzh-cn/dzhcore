@@ -3,7 +3,6 @@ package pgsql
 import (
 	_ "github.com/gogf/gf/contrib/drivers/pgsql/v2"
 
-	"github.com/cool-team-official/cool-admin-go/cool/cooldb"
 	"github.com/gogf/gf/v2/frame/g"
 
 	"fmt"
@@ -11,6 +10,7 @@ import (
 	"github.com/gogf/gf/v2/database/gdb"
 	"github.com/gogf/gf/v2/text/gregex"
 	"github.com/gogf/gf/v2/text/gstr"
+	"github.com/gzdzh-cn/dzhcore/coredb"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
@@ -75,7 +75,7 @@ func init() {
 		driverNames = g.SliceStr{"pgsql"}
 	)
 	for _, driverName := range driverNames {
-		if err = cooldb.Register(driverName, driverObj); err != nil {
+		if err = coredb.Register(driverName, driverObj); err != nil {
 			panic(err)
 		}
 	}

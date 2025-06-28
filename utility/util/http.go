@@ -2,6 +2,7 @@ package util
 
 import (
 	"context"
+
 	"github.com/gogf/gf/v2/net/gclient"
 	"github.com/gogf/gf/v2/util/gconv"
 
@@ -14,29 +15,37 @@ import (
 	"github.com/gogf/gf/v2/os/gctx"
 )
 
-var ProxyOpen bool
-var ProxyURL string
-
-func init() {
-
-	ctx := gctx.New()
-
-	proxy_open, err := g.Cfg().Get(ctx, "http.proxy_open")
-	if err != nil {
-		g.Log().Error(ctx, err)
-	}
-	ProxyOpen = proxy_open.Bool()
-
-	proxyUrl, err := g.Cfg().Get(ctx, "http.proxy_url")
-	if err != nil {
-		g.Log().Error(ctx, err)
-	}
-
-	ProxyURL = proxyUrl.String()
+// HttpClient HTTP客户端结构体
+type HttpClient struct {
+	ProxyOpen bool
+	ProxyURL  string
 }
 
-func HttpGet(ctx context.Context, url string, header map[string]string, data interface{}, result interface{}, cookies ...map[string]string) error {
+// NewHttpClient 创建新的HTTP客户端实例
+func NewHttpClient() *HttpClient {
+	return &HttpClient{
+		ProxyOpen: false,
+		ProxyURL:  "",
+	}
+}
 
+// NewHttpClientWithProxy 创建带代理配置的HTTP客户端实例
+func NewHttpClientWithProxy(proxyOpen bool, proxyURL string) *HttpClient {
+	return &HttpClient{
+		ProxyOpen: proxyOpen,
+		ProxyURL:  proxyURL,
+	}
+}
+
+// SetProxy 设置代理配置
+func (h *HttpClient) SetProxy(proxyOpen bool, proxyURL string) *HttpClient {
+	h.ProxyOpen = proxyOpen
+	h.ProxyURL = proxyURL
+	return h
+}
+
+// Get 执行GET请求
+func (h *HttpClient) Get(ctx context.Context, url string, header map[string]string, data interface{}, result interface{}, cookies ...map[string]string) error {
 	client := g.Client().Timeout(60 * time.Second)
 	if header != nil {
 		client.SetHeaderMap(header)
@@ -44,6 +53,11 @@ func HttpGet(ctx context.Context, url string, header map[string]string, data int
 
 	if len(cookies) > 0 {
 		client.Cookie(cookies[0])
+	}
+
+	// 设置代理
+	if h.ProxyOpen && len(h.ProxyURL) > 0 {
+		client.SetProxy(h.ProxyURL)
 	}
 
 	response, err := client.Get(ctx, url, data)
@@ -62,7 +76,7 @@ func HttpGet(ctx context.Context, url string, header map[string]string, data int
 	bytes := response.ReadAll()
 	g.Log().Debugf(ctx, "HttpGet url: %s, header: %+v, data: %+v, response: %s", gconv.String(url), gconv.String(header), gconv.String(data), string(bytes))
 
-	if bytes != nil && len(bytes) > 0 {
+	if len(bytes) > 0 {
 		err = gjson.Unmarshal(bytes, result)
 		if err != nil {
 			g.Log().Error(ctx, err)
@@ -73,27 +87,16 @@ func HttpGet(ctx context.Context, url string, header map[string]string, data int
 	return nil
 }
 
-// HttpPost
-//
-//	@Description: post请求
-//	@param ctx
-//	@param url
-//	@param header
-//	@param data 发送的参数
-//	@param result 返回的数据
-//	@return error
-func HttpPost(ctx context.Context, url string, header map[string]string, data, result interface{}) error {
-
-	// g.Log().Debugf(ctx, "HttpPost url: %s, header: %+v, data: %+v", url, header, data)
-
+// Post 执行POST请求
+func (h *HttpClient) Post(ctx context.Context, url string, header map[string]string, data, result interface{}) error {
 	client := g.Client().Timeout(60 * time.Second)
 	if header != nil {
 		client.SetHeaderMap(header)
 	}
 
-	//设置代理
-	if ProxyOpen && len(ProxyURL) > 0 {
-		client.SetProxy(ProxyURL)
+	// 设置代理
+	if h.ProxyOpen && len(h.ProxyURL) > 0 {
+		client.SetProxy(h.ProxyURL)
 	}
 
 	response, err := client.ContentJson().Post(ctx, url, data)
@@ -112,7 +115,7 @@ func HttpPost(ctx context.Context, url string, header map[string]string, data, r
 	bytes := response.ReadAll()
 	g.Log().Debugf(ctx, "HttpPost url: %s, header: %+v, data: %+v, response: %s", gconv.String(url), gconv.String(header), gconv.String(data), string(bytes))
 
-	if bytes != nil && len(bytes) > 0 {
+	if len(bytes) > 0 {
 		err = gjson.Unmarshal(bytes, result)
 		if err != nil {
 			g.Log().Error(ctx, err)
@@ -123,16 +126,15 @@ func HttpPost(ctx context.Context, url string, header map[string]string, data, r
 	return nil
 }
 
-// 返回结果
-func HttpPostResult(ctx context.Context, url string, header map[string]string, data, result interface{}) (res interface{}, err error) {
-
+// PostResult 执行POST请求并返回结果
+func (h *HttpClient) PostResult(ctx context.Context, url string, header map[string]string, data, result interface{}) (res interface{}, err error) {
 	client := g.Client().Timeout(60 * time.Second)
 	if header != nil {
 		client.SetHeaderMap(header)
 	}
 
-	if ProxyOpen && len(ProxyURL) > 0 {
-		client.SetProxy(ProxyURL)
+	if h.ProxyOpen && len(h.ProxyURL) > 0 {
+		client.SetProxy(h.ProxyURL)
 	}
 
 	response, err := client.ContentJson().Post(ctx, url, data)
@@ -151,7 +153,7 @@ func HttpPostResult(ctx context.Context, url string, header map[string]string, d
 	bytes := response.ReadAll()
 	g.Log().Debugf(ctx, "HttpPost url: %s, header: %+v, data: %+v, response: %s", url, header, data, string(bytes))
 
-	if bytes != nil && len(bytes) > 0 {
+	if len(bytes) > 0 {
 		err = gjson.Unmarshal(bytes, result)
 		if err != nil {
 			g.Log().Error(ctx, err)
@@ -162,19 +164,18 @@ func HttpPostResult(ctx context.Context, url string, header map[string]string, d
 	return
 }
 
-func HttpDownloadFile(ctx context.Context, fileURL string, useProxy ...bool) []byte {
-
+// DownloadFile 下载文件
+func (h *HttpClient) DownloadFile(ctx context.Context, fileURL string, useProxy ...bool) []byte {
 	g.Log().Debugf(ctx, "HttpDownloadFile fileURL: %s", fileURL)
 
 	client := g.Client().Timeout(600 * time.Second)
 
 	transport := &http.Transport{}
 
-	if ProxyOpen && len(ProxyURL) > 0 && (len(useProxy) == 0 || useProxy[0]) {
+	if h.ProxyOpen && len(h.ProxyURL) > 0 && (len(useProxy) == 0 || useProxy[0]) {
+		g.Log().Debugf(ctx, "HttpDownloadFile ProxyURL: %s", h.ProxyURL)
 
-		g.Log().Debugf(ctx, "HttpDownloadFile ProxyURL: %s", ProxyURL)
-
-		proxyUrl, err := url.Parse(ProxyURL)
+		proxyUrl, err := url.Parse(h.ProxyURL)
 		if err != nil {
 			g.Log().Error(ctx, err)
 		}
@@ -186,15 +187,12 @@ func HttpDownloadFile(ctx context.Context, fileURL string, useProxy ...bool) []b
 	return client.GetBytes(ctx, fileURL)
 }
 
-func GetProxy(ctx context.Context) func(*http.Request) (*url.URL, error) {
+// GetProxy 获取代理函数
+func (h *HttpClient) GetProxy(ctx context.Context) func(*http.Request) (*url.URL, error) {
+	if h.ProxyOpen && len(h.ProxyURL) > 0 {
+		g.Log().Debugf(ctx, "ProxyURL: %s", h.ProxyURL)
 
-	var proxy func(*http.Request) (*url.URL, error)
-
-	if ProxyOpen && len(ProxyURL) > 0 {
-
-		g.Log().Debugf(ctx, "ProxyURL: %s", ProxyURL)
-
-		proxyURL, err := url.Parse(ProxyURL)
+		proxyURL, err := url.Parse(h.ProxyURL)
 		if err != nil {
 			g.Log().Error(ctx, err)
 			return nil
@@ -203,14 +201,64 @@ func GetProxy(ctx context.Context) func(*http.Request) (*url.URL, error) {
 		return http.ProxyURL(proxyURL)
 	}
 
-	return proxy
+	return nil
+}
+
+// GetProxyTransport 获取代理传输器
+func (h *HttpClient) GetProxyTransport(ctx context.Context) *http.Transport {
+	transport := &http.Transport{}
+	transport.Proxy = h.GetProxy(ctx)
+	return transport
+}
+
+// 为了保持向后兼容，保留原有的全局函数
+var ProxyOpen bool
+var ProxyURL string
+
+func init() {
+	ctx := gctx.New()
+
+	proxy_open, err := g.Cfg().Get(ctx, "http.proxy_open")
+	if err != nil {
+		g.Log().Error(ctx, err)
+	}
+	ProxyOpen = proxy_open.Bool()
+
+	proxyUrl, err := g.Cfg().Get(ctx, "http.proxy_url")
+	if err != nil {
+		g.Log().Error(ctx, err)
+	}
+
+	ProxyURL = proxyUrl.String()
+}
+
+// 兼容性函数，使用新的结构体实现
+func HttpGet(ctx context.Context, url string, header map[string]string, data interface{}, result interface{}, cookies ...map[string]string) error {
+	client := NewHttpClientWithProxy(ProxyOpen, ProxyURL)
+	return client.Get(ctx, url, header, data, result, cookies...)
+}
+
+func HttpPost(ctx context.Context, url string, header map[string]string, data, result interface{}) error {
+	client := NewHttpClientWithProxy(ProxyOpen, ProxyURL)
+	return client.Post(ctx, url, header, data, result)
+}
+
+func HttpPostResult(ctx context.Context, url string, header map[string]string, data, result interface{}) (res interface{}, err error) {
+	client := NewHttpClientWithProxy(ProxyOpen, ProxyURL)
+	return client.PostResult(ctx, url, header, data, result)
+}
+
+func HttpDownloadFile(ctx context.Context, fileURL string, useProxy ...bool) []byte {
+	client := NewHttpClientWithProxy(ProxyOpen, ProxyURL)
+	return client.DownloadFile(ctx, fileURL, useProxy...)
+}
+
+func GetProxy(ctx context.Context) func(*http.Request) (*url.URL, error) {
+	client := NewHttpClientWithProxy(ProxyOpen, ProxyURL)
+	return client.GetProxy(ctx)
 }
 
 func GetProxyTransport(ctx context.Context) *http.Transport {
-
-	transport := &http.Transport{}
-
-	transport.Proxy = GetProxy(ctx)
-
-	return transport
+	client := NewHttpClientWithProxy(ProxyOpen, ProxyURL)
+	return client.GetProxyTransport(ctx)
 }
