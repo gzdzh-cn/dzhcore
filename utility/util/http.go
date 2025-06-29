@@ -12,7 +12,6 @@ import (
 
 	"github.com/gogf/gf/v2/encoding/gjson"
 	"github.com/gogf/gf/v2/frame/g"
-	"github.com/gogf/gf/v2/os/gctx"
 )
 
 // HttpClient HTTP客户端结构体
@@ -209,56 +208,4 @@ func (h *HttpClient) GetProxyTransport(ctx context.Context) *http.Transport {
 	transport := &http.Transport{}
 	transport.Proxy = h.GetProxy(ctx)
 	return transport
-}
-
-// 为了保持向后兼容，保留原有的全局函数
-var ProxyOpen bool
-var ProxyURL string
-
-func init() {
-	ctx := gctx.New()
-
-	proxy_open, err := g.Cfg().Get(ctx, "http.proxy_open")
-	if err != nil {
-		g.Log().Error(ctx, err)
-	}
-	ProxyOpen = proxy_open.Bool()
-
-	proxyUrl, err := g.Cfg().Get(ctx, "http.proxy_url")
-	if err != nil {
-		g.Log().Error(ctx, err)
-	}
-
-	ProxyURL = proxyUrl.String()
-}
-
-// 兼容性函数，使用新的结构体实现
-func HttpGet(ctx context.Context, url string, header map[string]string, data interface{}, result interface{}, cookies ...map[string]string) error {
-	client := NewHttpClientWithProxy(ProxyOpen, ProxyURL)
-	return client.Get(ctx, url, header, data, result, cookies...)
-}
-
-func HttpPost(ctx context.Context, url string, header map[string]string, data, result interface{}) error {
-	client := NewHttpClientWithProxy(ProxyOpen, ProxyURL)
-	return client.Post(ctx, url, header, data, result)
-}
-
-func HttpPostResult(ctx context.Context, url string, header map[string]string, data, result interface{}) (res interface{}, err error) {
-	client := NewHttpClientWithProxy(ProxyOpen, ProxyURL)
-	return client.PostResult(ctx, url, header, data, result)
-}
-
-func HttpDownloadFile(ctx context.Context, fileURL string, useProxy ...bool) []byte {
-	client := NewHttpClientWithProxy(ProxyOpen, ProxyURL)
-	return client.DownloadFile(ctx, fileURL, useProxy...)
-}
-
-func GetProxy(ctx context.Context) func(*http.Request) (*url.URL, error) {
-	client := NewHttpClientWithProxy(ProxyOpen, ProxyURL)
-	return client.GetProxy(ctx)
-}
-
-func GetProxyTransport(ctx context.Context) *http.Transport {
-	client := NewHttpClientWithProxy(ProxyOpen, ProxyURL)
-	return client.GetProxyTransport(ctx)
 }
