@@ -5,13 +5,13 @@ import (
 	"time"
 
 	"github.com/bwmarrin/snowflake"
-	"github.com/gogf/gf/i18n/gi18n"
-	"github.com/gogf/gf/util/guid"
 	"github.com/gogf/gf/v2/database/gredis"
 	"github.com/gogf/gf/v2/frame/g"
+	"github.com/gogf/gf/v2/i18n/gi18n"
 	"github.com/gogf/gf/v2/os/gbuild"
 	"github.com/gogf/gf/v2/os/gcache"
 	"github.com/gogf/gf/v2/os/gctx"
+	"github.com/gogf/gf/v2/util/guid"
 	"gorm.io/gorm"
 )
 
