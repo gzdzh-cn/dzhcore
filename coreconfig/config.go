@@ -6,6 +6,7 @@ import (
 	"github.com/gogf/gf/v2/frame/g"
 	"github.com/gogf/gf/v2/os/gbuild"
 	"github.com/gogf/gf/v2/os/gctx"
+	"github.com/gzdzh-cn/dzhcore/config"
 	"github.com/gzdzh-cn/dzhcore/utility/util"
 	"github.com/joho/godotenv"
 )
@@ -13,7 +14,6 @@ import (
 var (
 	ctx    = gctx.GetInitCtx()
 	Config *sConfig
-	IsProd = false
 )
 
 // core config
@@ -43,7 +43,7 @@ type file struct {
 func init() {
 	gbuildData := gbuild.Data()
 	if _, ok := gbuildData["builtTime"]; ok {
-		IsProd = true
+		config.IsProd = true
 	}
 	err := godotenv.Load()
 	if err != nil {
@@ -56,7 +56,7 @@ func init() {
 // NewConfig new config
 func newConfig() *sConfig {
 
-	config := &sConfig{
+	newCfg := &sConfig{
 		AutoMigrate: GetCfgWithDefault(ctx, "core.autoMigrate", g.NewVar(false)).Bool(),
 		Eps:         GetCfgWithDefault(ctx, "core.eps", g.NewVar(false)).Bool(),
 		File: &file{
@@ -64,31 +64,31 @@ func newConfig() *sConfig {
 			Domain: GetCfgWithDefault(ctx, "core.file.domain", g.NewVar("http://127.0.0.1:8200")).String(),
 			Oss: &oss{
 				Endpoint: func() string {
-					if !IsProd {
+					if !config.IsProd {
 						return util.Getenv("OSS_ENDPOINT", GetCfgWithDefault(ctx, "core.file.oss.endpoint", g.NewVar("")).String())
 					}
 					return GetCfgWithDefault(ctx, "core.file.oss.endpoint", g.NewVar("")).String()
 				}(),
 				AccessKeyID: func() string {
-					if !IsProd {
+					if !config.IsProd {
 						return util.Getenv("OSS_ACCESS_KEY_ID", GetCfgWithDefault(ctx, "core.file.oss.accessKeyID", g.NewVar("")).String())
 					}
 					return GetCfgWithDefault(ctx, "core.file.oss.accessKeyID", g.NewVar("")).String()
 				}(),
 				SecretAccessKey: func() string {
-					if !IsProd {
+					if !config.IsProd {
 						return util.Getenv("OSS_SECRET_ACCESS_KEY", GetCfgWithDefault(ctx, "core.file.oss.secretAccessKey", g.NewVar("")).String())
 					}
 					return GetCfgWithDefault(ctx, "core.file.oss.secretAccessKey", g.NewVar("")).String()
 				}(),
 				BucketName: func() string {
-					if !IsProd {
+					if !config.IsProd {
 						return util.Getenv("OSS_BUCKET_NAME", GetCfgWithDefault(ctx, "core.file.oss.bucketName", g.NewVar("")).String())
 					}
 					return GetCfgWithDefault(ctx, "core.file.oss.bucketName", g.NewVar("")).String()
 				}(),
 				UseSSL: func() bool {
-					if !IsProd {
+					if !config.IsProd {
 						// 先从环境变量获取，若未设置则用配置文件
 						envVal := util.Getenv("OSS_USESSL", "")
 						if envVal != "" {
@@ -103,7 +103,7 @@ func newConfig() *sConfig {
 			},
 		},
 	}
-	return config
+	return newCfg
 }
 
 // GetCfgWithDefault get config with default value

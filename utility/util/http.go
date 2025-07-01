@@ -61,14 +61,14 @@ func (h *HttpClient) Get(ctx context.Context, url string, header map[string]stri
 
 	response, err := client.Get(ctx, url, data)
 	if err != nil {
-		g.Log().Error(ctx, err)
+		g.Log().Error(ctx, err.Error())
 		return err
 	}
 
 	defer func(response *gclient.Response) {
 		err = response.Close()
 		if err != nil {
-			g.Log().Error(ctx, err)
+			g.Log().Error(ctx, err.Error())
 		}
 	}(response)
 
@@ -78,7 +78,7 @@ func (h *HttpClient) Get(ctx context.Context, url string, header map[string]stri
 	if len(bytes) > 0 {
 		err = gjson.Unmarshal(bytes, result)
 		if err != nil {
-			g.Log().Error(ctx, err)
+			g.Log().Error(ctx, err.Error())
 			return err
 		}
 	}
@@ -100,14 +100,14 @@ func (h *HttpClient) Post(ctx context.Context, url string, header map[string]str
 
 	response, err := client.ContentJson().Post(ctx, url, data)
 	if err != nil {
-		g.Log().Error(ctx, err)
+		g.Log().Error(ctx, err.Error())
 		return err
 	}
 
 	defer func(response *gclient.Response) {
 		err = response.Close()
 		if err != nil {
-			g.Log().Error(ctx, err)
+			g.Log().Error(ctx, err.Error())
 		}
 	}(response)
 
@@ -117,7 +117,7 @@ func (h *HttpClient) Post(ctx context.Context, url string, header map[string]str
 	if len(bytes) > 0 {
 		err = gjson.Unmarshal(bytes, result)
 		if err != nil {
-			g.Log().Error(ctx, err)
+			g.Log().Error(ctx, err.Error())
 			return err
 		}
 	}
@@ -138,14 +138,14 @@ func (h *HttpClient) PostResult(ctx context.Context, url string, header map[stri
 
 	response, err := client.ContentJson().Post(ctx, url, data)
 	if err != nil {
-		g.Log().Error(ctx, err)
+		g.Log().Error(ctx, err.Error())
 		return
 	}
 
 	defer func() {
 		err = response.Close()
 		if err != nil {
-			g.Log().Error(ctx, err)
+			g.Log().Error(ctx, err.Error())
 		}
 	}()
 
@@ -155,7 +155,7 @@ func (h *HttpClient) PostResult(ctx context.Context, url string, header map[stri
 	if len(bytes) > 0 {
 		err = gjson.Unmarshal(bytes, result)
 		if err != nil {
-			g.Log().Error(ctx, err)
+			g.Log().Error(ctx, err.Error())
 			return
 		}
 	}
@@ -176,7 +176,7 @@ func (h *HttpClient) DownloadFile(ctx context.Context, fileURL string, useProxy 
 
 		proxyUrl, err := url.Parse(h.ProxyURL)
 		if err != nil {
-			g.Log().Error(ctx, err)
+			g.Log().Error(ctx, err.Error())
 		}
 
 		transport.Proxy = http.ProxyURL(proxyUrl)
@@ -193,7 +193,7 @@ func (h *HttpClient) GetProxy(ctx context.Context) func(*http.Request) (*url.URL
 
 		proxyURL, err := url.Parse(h.ProxyURL)
 		if err != nil {
-			g.Log().Error(ctx, err)
+			g.Log().Error(ctx, err.Error())
 			return nil
 		}
 

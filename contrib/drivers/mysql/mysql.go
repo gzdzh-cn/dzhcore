@@ -60,13 +60,13 @@ func (d *DriverMysql) GetConn(config *gdb.ConfigNode) (db *gorm.DB, err error) {
 	return gorm.Open(mysql.Open(source), &gorm.Config{})
 }
 
-func NewInit() {
+func init() {
 
-	g.Log().Debug(ctx, "------------ mysql NewInit start ...")
+	g.Log().Debug(ctx, "------------ mysql init start ...")
 	for _, driverName := range driverNames {
 		if err = coredb.Register(driverName, driverObj); err != nil {
 			panic(err)
 		}
 	}
-	g.Log().Debug(ctx, "------------ mysql NewInit end ...")
+	g.Log().Debug(ctx, "------------ mysql init end ...")
 }

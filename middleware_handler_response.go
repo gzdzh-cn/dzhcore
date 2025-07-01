@@ -37,7 +37,7 @@ func MiddlewareHandlerResponse(r *ghttp.Request) {
 		code = gerror.Code(err).Code()
 	)
 
-	// g.Log().Debug(ctx, code, msg, res)
+	// RunLogger.Debug(ctx, code, msg, res)
 	msg = "success"
 
 	if err != nil {
@@ -67,7 +67,7 @@ func MiddlewareHandlerResponse(r *ghttp.Request) {
 		code = 1003
 	default:
 	}
-	// g.Log().Debug(ctx, code, msg, res)
+	// RunLogger.Debug(ctx, code, msg, res)
 	// 如果是正常返回，直接返回res
 	if code == 1000 && r.Response.Status == 200 {
 		r.Response.WriteJsonExit(res)

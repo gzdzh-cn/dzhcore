@@ -1,7 +1,12 @@
 package dzhcore
 
 import (
+	"github.com/gogf/gf/v2/os/gctx"
 	"github.com/golang-jwt/jwt/v4"
+)
+
+var (
+	ctx = gctx.GetInitCtx()
 )
 
 type Claims struct {

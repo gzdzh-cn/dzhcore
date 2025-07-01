@@ -109,10 +109,22 @@ func Getenv(key string, defaultValue string) string {
 }
 
 // 获取日志路径
-func GetLoggerPath(isProd bool, appName string) string {
+func GetLoggerPath(isProd bool, appName string, isDesktop bool, defaultPath string) string {
+
 	if !isProd {
+		if defaultPath != "" {
+			return defaultPath
+		}
 		return "./data/logs/"
 	}
+
+	if isProd && !isDesktop {
+		if defaultPath != "" {
+			return defaultPath
+		}
+		return "./data/logs/"
+	}
+
 	// 获取适合当前操作系统的基础存储路径
 	var basePath string
 	switch runtime.GOOS {
@@ -133,5 +145,9 @@ func GetLoggerPath(isProd bool, appName string) string {
 			basePath = filepath.Join(homeDir, "."+appName+"/logs/")
 		}
 	}
+	if _, err := os.Stat(basePath); os.IsNotExist(err) {
+		os.MkdirAll(basePath, 0755)
+	}
 	return basePath
+
 }

@@ -254,7 +254,7 @@ func getModelInfo(ctx g.Ctx, prefix string, model IModel) (columns []*ColumnInfo
 	if err != nil {
 		panic(err)
 	}
-	// g.Log().Info(ctx, "fields", fields)
+	// RunLogger.Info(ctx, "fields", fields)
 	sortedFields := garray.NewArraySize(len(fields), len(fields))
 	for _, field := range fields {
 		sortedFields.Set(field.Index, field)

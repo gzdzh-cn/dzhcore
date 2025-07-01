@@ -54,8 +54,8 @@ func (l *Local) GetMode() (data interface{}, err error) {
 	return
 }
 
-func NewInit() {
-	g.Log().Debug(ctx, "------------ local NewInit start")
+func init() {
+	g.Log().Debug(ctx, "------------ local init start")
 
 	var (
 		err         error
@@ -76,9 +76,5 @@ func NewInit() {
 	}
 	s.AddStaticPath("/public", "./public")
 
-	g.Log().Debug(ctx, "------------ local NewInit end")
-}
-
-func init() {
-
+	g.Log().Debug(ctx, "------------ local init end")
 }

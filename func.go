@@ -36,6 +36,7 @@ func RunFunc(ctx g.Ctx, funcstring string) (err error) {
 	funcParam := gstr.SubStr(funcstring, gstr.Pos(funcstring, "(")+1, gstr.Pos(funcstring, ")")-gstr.Pos(funcstring, "(")-1)
 	if _, ok := FuncMap[funcName]; !ok {
 		err = gerror.New("函数不存在:" + funcName)
+		g.Log().Error(ctx, err.Error())
 		return
 	}
 	if !FuncMap[funcName].IsAllWorker() {
@@ -81,7 +82,7 @@ func ListenFunc(ctx g.Ctx) {
 			data, err := conn.Receive(ctx)
 			//g.Dump("ListenFunc data", data)
 			if err != nil {
-				g.Log().Error(ctx, err)
+				g.Log().Error(ctx, err.Error())
 				time.Sleep(10 * time.Second)
 				continue
 			}
@@ -92,10 +93,10 @@ func ListenFunc(ctx g.Ctx) {
 					continue
 				}
 				if dataMap["Channel"] == "core:func" {
-					g.Log().Debug(ctx, "执行函数", dataMap["Payload"])
+					g.Log().Debugf(ctx, "执行函数", dataMap["Payload"])
 					err := RunFunc(ctx, dataMap["Payload"])
 					if err != nil {
-						g.Log().Error(ctx, "执行函数失败", err)
+						g.Log().Errorf(ctx, "执行函数失败", err.Error())
 					}
 				}
 			}

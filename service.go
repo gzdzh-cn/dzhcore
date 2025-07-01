@@ -3,13 +3,14 @@ package dzhcore
 import (
 	"context"
 	"fmt"
+	"time"
+
 	"github.com/gogf/gf/v2/container/garray"
 	"github.com/gogf/gf/v2/database/gdb"
 	"github.com/gogf/gf/v2/errors/gerror"
 	"github.com/gogf/gf/v2/frame/g"
 	"github.com/gogf/gf/v2/text/gstr"
 	"github.com/gogf/gf/v2/util/gconv"
-	"time"
 )
 
 type IService interface {
@@ -131,6 +132,7 @@ func (s *Service) ServiceUpdate(ctx context.Context, req *UpdateReq) (data inter
 	rmap := r.GetMap()
 	if rmap["id"] == nil {
 		err = gerror.New("id不能为空")
+		g.Log().Error(ctx, err.Error())
 		return
 	}
 	if s.UniqueKey != nil {
@@ -142,6 +144,7 @@ func (s *Service) ServiceUpdate(ctx context.Context, req *UpdateReq) (data inter
 				}
 				if count > 0 {
 					err = gerror.New(v)
+					g.Log().Error(ctx, err.Error())
 					return nil, err
 				}
 			}
@@ -263,7 +266,7 @@ func (s *Service) ServiceList(ctx context.Context, req *ListReq) (data interface
 
 	result, err := m.All()
 	if err != nil {
-		g.Log().Error(ctx, "ServiceList error:", err)
+		g.Log().Errorf(ctx, "ServiceList error:", err.Error())
 	}
 	if result == nil {
 		data = garray.New()

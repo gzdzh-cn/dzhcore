@@ -6,6 +6,7 @@ import (
 	"github.com/gogf/gf/v2/database/gdb"
 	"github.com/gogf/gf/v2/encoding/gurl"
 	"github.com/gogf/gf/v2/frame/g"
+	"github.com/gogf/gf/v2/os/gctx"
 	"github.com/gogf/gf/v2/os/gfile"
 	"github.com/gogf/gf/v2/text/gstr"
 	"github.com/gogf/gf/v2/util/gconv"
@@ -13,6 +14,10 @@ import (
 
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
+)
+
+var (
+	ctx = gctx.GetInitCtx()
 )
 
 type DriverSqlite struct {
@@ -59,7 +64,8 @@ func (d *DriverSqlite) GetConn(config *gdb.ConfigNode) (db *gorm.DB, err error) 
 	return gorm.Open(sqlite.Open(source), &gorm.Config{})
 }
 
-func NewInit() {
+func init() {
+	g.Log().Debug(ctx, "------------ sqlite init start")
 	var (
 		err         error
 		driverObj   = NewSqlite()
@@ -70,4 +76,6 @@ func NewInit() {
 			panic(err)
 		}
 	}
+
+	g.Log().Debug(ctx, "------------ sqlite init end")
 }

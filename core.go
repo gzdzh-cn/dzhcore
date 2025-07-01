@@ -4,13 +4,16 @@ import (
 	"context"
 	"time"
 
+	"github.com/gzdzh-cn/dzhcore/config"
+	"github.com/gzdzh-cn/dzhcore/log"
+	"github.com/gzdzh-cn/dzhcore/utility/util"
+
 	"github.com/bwmarrin/snowflake"
 	"github.com/gogf/gf/v2/database/gredis"
 	"github.com/gogf/gf/v2/frame/g"
 	"github.com/gogf/gf/v2/i18n/gi18n"
 	"github.com/gogf/gf/v2/os/gbuild"
 	"github.com/gogf/gf/v2/os/gcache"
-	"github.com/gogf/gf/v2/os/gctx"
 	"github.com/gogf/gf/v2/util/guid"
 	"gorm.io/gorm"
 )
@@ -27,29 +30,43 @@ var (
 	NodeSnowflake  *snowflake.Node             // 雪花
 	DbCacheManager = gcache.New()
 	DbRedisEnable  = false // 开启db 查询结果使用 redis 缓存
+	redisConfig    = &gredis.Config{}
 	DbExpire       int64
-	IsProd         = false
+	IsProd         = config.IsProd
+	AppName        = config.AppName
+	IsDesktop      = config.IsDesktop // 是否为桌面端
+	ConfigMap      = config.ConfigMap
+	RunLogger      = log.RunLogger // 日志记录器
+
 )
 
 func init() {
+	IsDesktop = GetCfgWithDefault(ctx, "core.isDesktop", g.NewVar(false)).Bool()
+	AppName = GetCfgWithDefault(ctx, "core.appName", g.NewVar("dzhgo")).String()
 	gbuildData := gbuild.Data()
-	if _, ok := gbuildData["builtTime"]; ok {
-		g.Log().Warning(ctx, "生产环境")
-		IsProd = true
+	if !IsDesktop {
+		if _, ok := gbuildData["builtTime"]; ok {
+			IsProd = true
+		} else {
+			IsProd = false
+		}
 	} else {
-		g.Log().Warning(ctx, "开发环境")
-		IsProd = false
+		IsProd = GetCfgWithDefault(ctx, "core.isProd", g.NewVar(false)).Bool()
 	}
-}
 
-func NewInit() {
-
-	g.Log().Debug(ctx, "------------ dzhcore NewInit start")
-
-	var (
-		ctx         = gctx.GetInitCtx()
-		redisConfig = &gredis.Config{}
-	)
+	if RunLogger == nil {
+		defaultPath := GetCfgWithDefault(ctx, "core.gfLogger.path", g.NewVar("path")).String()
+		logPath := util.GetLoggerPath(IsProd, AppName, IsDesktop, defaultPath)
+		ConfigMap = g.Map{
+			"path":     logPath,
+			"level":    GetCfgWithDefault(ctx, "core.gfLogger.level", g.NewVar("debug")).String(),
+			"stdout":   GetCfgWithDefault(ctx, "core.gfLogger.stdout", g.NewVar(true)).Bool(),
+			"flags":    GetCfgWithDefault(ctx, "core.gfLogger.flags", g.NewVar(44)).Int(),
+			"stStatus": GetCfgWithDefault(ctx, "core.gfLogger.stStatus", g.NewVar(1)).Int(),
+			"stSkip":   GetCfgWithDefault(ctx, "core.gfLogger.stSkip", g.NewVar(1)).Int(),
+		}
+		RunLogger = log.NewRunLogger(ConfigMap) // 初始化 RunLogger 变量
+	}
 
 	SetVersions("dzhcore", Version)
 	NodeSnowflake = CreateSnowflake(ctx) //雪花节点创建
@@ -71,14 +88,15 @@ func NewInit() {
 		if !redisVar.IsEmpty() {
 			err = redisVar.Struct(redisConfig)
 			if err != nil {
+				g.Log().Error(ctx, "初始化缓存失败,请检查配置文件")
 				return
 			}
 			redis, err := gredis.New(redisConfig)
 			if err != nil {
+				g.Log().Error(ctx, "初始化缓存失败,请检查配置文件")
 				panic(err)
 			}
 			CacheManager.SetAdapter(gcache.NewAdapterRedis(redis))
-			// IsRedisMode = true
 		}
 
 		//db 查询使用指定缓存分组
@@ -95,6 +113,7 @@ func NewInit() {
 				redisConfig.Db = dbNum
 				redis, err := gredis.New(redisConfig)
 				if err != nil {
+					g.Log().Error(ctx, "初始化缓存失败,请检查配置文件")
 					panic(err)
 				}
 				redisCache := gcache.NewAdapterRedis(redis)
@@ -103,11 +122,23 @@ func NewInit() {
 		}
 	}
 
-	g.Log().Infof(ctx, "dzhcore version:%v", Version)
-	g.Log().Info(ctx, "当前运行模式", RunMode)
-	g.Log().Info(ctx, "当前实例ID:", ProcessFlag)
-	g.Log().Info(ctx, "是否redis缓存模式:", IsRedisMode)
-	g.Log().Info(ctx, "是否DbRedisEnable缓存模式:", DbRedisEnable)
+}
+
+func NewInit() {
+
+	g.Log().Debug(ctx, "------------ dzhcore NewInit start")
+	g.Log().Debugf(ctx, "IsProd:%v, AppName:%v, IsDesktop:%v", IsProd, AppName, IsDesktop)
+
+	if IsProd {
+		g.Log().Info(ctx, "生产环境")
+	} else {
+		g.Log().Info(ctx, "开发环境")
+	}
+	g.Log().Debugf(ctx, "dzhcore version:%v", Version)
+	g.Log().Debugf(ctx, "当前运行模式:%v", RunMode)
+	g.Log().Debugf(ctx, "当前实例ID:%v", ProcessFlag)
+	g.Log().Debugf(ctx, "是否redis缓存模式:%v", IsRedisMode)
+	g.Log().Debugf(ctx, "是否DbRedisEnable缓存模式:%v", DbRedisEnable)
 
 	// 创建全部表
 	InitModels()

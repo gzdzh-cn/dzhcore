@@ -1,7 +1,6 @@
 package dzhcore
 
 import (
-	"github.com/gogf/gf/v2/os/gctx"
 	"gorm.io/gorm"
 
 	"github.com/gogf/gf/v2/database/gdb"
@@ -18,7 +17,6 @@ import (
 )
 
 var (
-	ctx    = gctx.GetInitCtx()
 	Models []IModel
 )
 
@@ -93,7 +91,7 @@ func FillInitData(ctx g.Ctx, moduleName string, model IModel) {
 	mInit := g.DB("default").Model("base_sys_init")
 	value, err := mInit.Clone().Where("group", model.GroupName()).Where("module", moduleName).Value("tables")
 	if err != nil {
-		g.Log().Error(ctx, "读取表 base_sys_init 失败 ", err.Error())
+		g.Log().Errorf(ctx, "读取表 base_sys_init 失败: %s", err.Error())
 	}
 
 	// 模块第一次写入数据
@@ -145,7 +143,7 @@ func updateData(ctx g.Ctx, mInit *gdb.Model, moduleName string, model IModel) er
 	g.Log().Debugf(ctx, "model.TableName(): %v,path:%v", model.TableName(), path)
 
 	if jsonData.Var().Clone().IsEmpty() {
-		g.Log().Debug(ctx, "分组", model.GroupName(), "中的表", model.TableName(), "无可用的初始化数据,跳过本次初始化. jsonData:", jsonData)
+		g.Log().Debugf(ctx, "分组%s中的表%s无可用的初始化数据,跳过本次初始化. jsonData:%v", model.GroupName(), model.TableName(), jsonData)
 		return gerror.New("无可用的初始化数据,跳过本次初始化")
 	}
 	_, err := m.Data(jsonData).Insert()
