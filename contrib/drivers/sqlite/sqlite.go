@@ -4,7 +4,7 @@ import (
 	"os"
 	"path/filepath"
 
-	_ "github.com/gogf/gf/contrib/drivers/sqlite/v2"
+	// _ "github.com/gogf/gf/contrib/drivers/sqlite/v2"
 	"github.com/gogf/gf/v2/encoding/gurl"
 	"github.com/gogf/gf/v2/text/gstr"
 	"github.com/gogf/gf/v2/util/gconv"
@@ -15,7 +15,7 @@ import (
 	"github.com/gogf/gf/v2/frame/g"
 	"github.com/gogf/gf/v2/os/gctx"
 	"github.com/gogf/gf/v2/os/gfile"
-	"github.com/gzdzh-cn/dzhcore/config"
+	"github.com/gzdzh-cn/dzhcore/coreconfig"
 	"github.com/gzdzh-cn/dzhcore/coredb"
 	"github.com/gzdzh-cn/dzhcore/utility/util"
 	"gorm.io/driver/sqlite"
@@ -44,9 +44,9 @@ func (d *DriverSqlite) GetRootPath(configNode *gdb.ConfigNode) string {
 		source = configNode.Name
 	}
 
-	if config.IsDesktop && config.IsProd {
+	if coreconfig.Config.Core.IsDesktop && coreconfig.Config.Core.IsProd {
 		dbFileName := filepath.Base(source)
-		d.source = util.NewToolUtil().GetDataBasePath(dbFileName, config.IsProd, config.AppName, config.IsDesktop, source)
+		d.source = util.NewToolUtil().GetDataBasePath(dbFileName, coreconfig.Config.Core.IsProd, coreconfig.Config.Core.AppName, coreconfig.Config.Core.IsDesktop, source)
 		source = d.source
 	} else {
 
@@ -88,16 +88,8 @@ func (d *DriverSqlite) GetConn(configNode *gdb.ConfigNode) (db *gorm.DB, err err
 			sourcePath += "?" + options
 		}
 	}
-	// ./database/dzhgo_go.sqlite
-	// /Users/lizheng/Library/Application Support/dzhgo/database/dzhgo_go.sqlite
-	// /Users/lizheng/dzhgo/database/dzhgo_go.sqlite
-	// g.Log().Debugf(ctx, "Will use %s to open DB", sourcePath)
-	// sourcePath = "./database/1dzhgo_go.sqlite?_pragma=busy_timeout(5000)"
-	// sourcePath = "/Users/lizheng/Library/Application Support/dzhgo/database/dzhgo_go.sqlite?_pragma=busy_timeout(5000)"
+
 	g.Log().Debugf(ctx, "Will use %s to open DB", sourcePath)
-	// fmt.Println("DB Dir Exists:", gfile.Exists(filepath.Dir(sourcePath)))
-	// fmt.Println("DB File Exists:", gfile.Exists(sourcePath))
-	// fmt.Println("DB Dir Writable:", gfile.IsWritable(filepath.Dir(sourcePath)))
 	return gorm.Open(sqlite.Open(sourcePath), &gorm.Config{})
 
 }

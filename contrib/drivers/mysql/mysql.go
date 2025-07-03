@@ -7,7 +7,7 @@ import (
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 
-	_ "github.com/gogf/gf/contrib/drivers/mysql/v2"
+	// _ "github.com/gogf/gf/contrib/drivers/mysql/v2"
 
 	"fmt"
 	"net/url"

@@ -11,13 +11,8 @@ import (
 )
 
 var (
-	ctx = gctx.GetInitCtx()
-
-	// IsProd    = false
-	// AppName   = "dzhgo"
+	ctx    = gctx.GetInitCtx()
 	Logger *SRunLogger
-	// IsDesktop = false // 是否为桌面端
-	// ConfigMap = g.Map{}
 )
 
 type SRunLogger struct {
@@ -110,14 +105,3 @@ func (l *SRunLogger) Fatalf(ctx context.Context, message string, args ...interfa
 	l.gLog.Errorf(ctx, message, args...)
 	os.Exit(1)
 }
-
-// func getCfgWithDefault(ctx g.Ctx, key string, defaultValue *g.Var) *g.Var {
-// 	value, err := g.Cfg().GetWithEnv(ctx, key)
-// 	if err != nil {
-// 		return defaultValue
-// 	}
-// 	if value.IsEmpty() || value.IsNil() {
-// 		return defaultValue
-// 	}
-// 	return value
-// }

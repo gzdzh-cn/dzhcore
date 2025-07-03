@@ -2,26 +2,60 @@
 package local
 
 import (
+	"path/filepath"
+
 	"github.com/gogf/gf/v2/os/gctx"
-	"github.com/gzdzh-cn/dzhcore"
+
+	"github.com/gzdzh-cn/dzhcore/coreconfig"
 	"github.com/gzdzh-cn/dzhcore/corefile"
+	"github.com/gzdzh-cn/dzhcore/utility/util"
 
 	"github.com/gogf/gf/v2/errors/gerror"
 	"github.com/gogf/gf/v2/frame/g"
-	"github.com/gogf/gf/v2/os/gfile"
 	"github.com/gogf/gf/v2/os/gtime"
 )
 
 var (
-	ctx = gctx.GetInitCtx()
+	ctx        = gctx.GetInitCtx()
+	uploadPath = ""
 )
 
 type Local struct {
 }
 
+func init() {
+	g.Log().Debug(ctx, "------------ local init start")
+
+	var (
+		err         error
+		driverObj   = New()
+		driverNames = g.SliceStr{"local"}
+	)
+	for _, driverName := range driverNames {
+		if err = corefile.Register(driverName, driverObj); err != nil {
+			panic(err)
+		}
+	}
+	// s := g.Server()
+	// if !gfile.Exists("./public/uploads") {
+	// 	err := gfile.Mkdir("./public/uploads")
+	// 	if err != nil {
+	// 		panic(err)
+	// 	}
+	// }
+	// s.AddStaticPath("/public", "./public")
+
+	g.Log().Debug(ctx, "------------ local init end")
+}
+
+func NewInit() {
+
+}
+
 func New() corefile.Driver {
 	return &Local{}
 }
+
 func (l *Local) New() corefile.Driver {
 	return &Local{}
 }
@@ -38,43 +72,26 @@ func (l *Local) Upload(ctx g.Ctx) (string, error) {
 	}
 	// 以当前年月日为目录
 	dir := gtime.Now().Format("Ymd")
-
-	fileName, err := file.Save("./public/uploads/"+dir, true)
+	defaultPath := coreconfig.Config.Server.ServerRoot
+	uploadPath := util.NewToolUtil().GetUploadPath(coreconfig.Config.Core.IsProd, coreconfig.Config.Core.AppName, coreconfig.Config.Core.IsDesktop, defaultPath)
+	fileName, err := file.Save(filepath.Join(uploadPath, dir), true)
 	if err != nil {
 		return "", err
 	}
-	return dzhcore.Config.File.Domain + "/public/uploads/" + dir + "/" + fileName, err
+
+	path := filepath.Join(uploadPath, dir) + "/" + fileName
+	if coreconfig.Config.Core.IsDesktop && coreconfig.Config.Core.IsProd {
+		return path, err
+	}
+
+	return coreconfig.Config.Core.File.Domain + "/" + path, err
+
 }
 
 func (l *Local) GetMode() (data interface{}, err error) {
 	data = g.MapStrStr{
-		"mode": dzhcore.Config.File.Mode,
+		"mode": coreconfig.Config.Core.File.Mode,
 		"type": "local",
 	}
 	return
-}
-
-func init() {
-	g.Log().Debug(ctx, "------------ local init start")
-
-	var (
-		err         error
-		driverObj   = New()
-		driverNames = g.SliceStr{"local"}
-	)
-	for _, driverName := range driverNames {
-		if err = corefile.Register(driverName, driverObj); err != nil {
-			panic(err)
-		}
-	}
-	s := g.Server()
-	if !gfile.Exists("./public/uploads") {
-		err := gfile.Mkdir("./public/uploads")
-		if err != nil {
-			panic(err)
-		}
-	}
-	s.AddStaticPath("/public", "./public")
-
-	g.Log().Debug(ctx, "------------ local init end")
 }

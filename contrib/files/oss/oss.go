@@ -15,7 +15,7 @@ import (
 	"github.com/gogf/gf/v2/os/gtime"
 	"github.com/gogf/gf/v2/text/gstr"
 	"github.com/gogf/gf/v2/util/grand"
-	"github.com/gzdzh-cn/dzhcore"
+	"github.com/gzdzh-cn/dzhcore/coreconfig"
 	"github.com/gzdzh-cn/dzhcore/corefile"
 )
 
@@ -51,13 +51,13 @@ func NewInit() {
 
 func New() corefile.Driver {
 
-	if dzhcore.Config.File.Mode != "oss" {
+	if coreconfig.Config.Core.File.Mode != "oss" {
 		return nil
 	}
-	endpoint := dzhcore.Config.File.Oss.Endpoint
-	accessKeyID := dzhcore.Config.File.Oss.AccessKeyID
-	secretAccessKey := dzhcore.Config.File.Oss.SecretAccessKey
-	bucketName := dzhcore.Config.File.Oss.BucketName
+	endpoint := coreconfig.Config.Core.File.Oss.Endpoint
+	accessKeyID := coreconfig.Config.Core.File.Oss.AccessKeyID
+	secretAccessKey := coreconfig.Config.Core.File.Oss.SecretAccessKey
+	bucketName := coreconfig.Config.Core.File.Oss.BucketName
 	// Initialize oss client object.
 	client, err := oss.New(endpoint, accessKeyID, secretAccessKey)
 	if err != nil {
@@ -125,7 +125,7 @@ func (m *Oss) Upload(ctx g.Ctx) (string, error) {
 		return "上传失败", err
 	}
 
-	url := fmt.Sprintf("https://%s.%s/%s", m.Bucket.BucketName, dzhcore.Config.File.Oss.Endpoint, fullPath)
+	url := fmt.Sprintf("https://%s.%s/%s", m.Bucket.BucketName, coreconfig.Config.Core.File.Oss.Endpoint, fullPath)
 
 	return url, nil
 }
@@ -168,7 +168,7 @@ func (m *Oss) UploadFile(ctx g.Ctx, filePath string) (string, error) {
 		gfile.Remove(filePath)
 	}
 
-	url := fmt.Sprintf("https://%s.%s/%s", m.Bucket.BucketName, dzhcore.Config.File.Oss.Endpoint, fullPath)
+	url := fmt.Sprintf("https://%s.%s/%s", m.Bucket.BucketName, coreconfig.Config.Core.File.Oss.Endpoint, fullPath)
 
 	return url, nil
 }

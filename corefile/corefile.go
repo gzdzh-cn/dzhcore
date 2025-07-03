@@ -18,14 +18,14 @@ var (
 )
 
 func NewFile() (d Driver) {
-	if driver, ok := FileMap[coreconfig.Config.File.Mode]; ok {
+	if driver, ok := FileMap[coreconfig.Config.Core.File.Mode]; ok {
 		return driver.New()
 	}
 	errorMsg := "\n"
 	errorMsg += `无法找到指定文件上传类型 "%s"`
 	errorMsg += `，您是否拼写错误了类型名称 "%s" 或者忘记导入上传支持包？`
 	errorMsg += `参考:https://github.com/dzhcore-team-official/dzhcore-admin-go/tree/master/contrib/files`
-	err := gerror.Newf(errorMsg, coreconfig.Config.File.Mode, coreconfig.Config.File.Mode)
+	err := gerror.Newf(errorMsg, coreconfig.Config.Core.File.Mode, coreconfig.Config.Core.File.Mode)
 
 	panic(err)
 

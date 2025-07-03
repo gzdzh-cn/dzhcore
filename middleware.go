@@ -6,13 +6,14 @@ import (
 
 	"github.com/gogf/gf/v2/frame/g"
 	"github.com/gogf/gf/v2/net/ghttp"
+	"github.com/gzdzh-cn/dzhcore/coreconfig"
 	"github.com/gzdzh-cn/dzhcore/utility/util"
 )
 
 func init() {
 	var s = g.Server()
 	//请求日志运行明细开启
-	if Cfg.Core.RunLogger.Enable {
+	if coreconfig.Config.Core.RunLogger.Enable {
 		s.BindMiddleware("/admin/*", RunLog) //请求日志明细
 		s.BindMiddleware("/app/*", RunLog)   //请求日志明细
 	}

@@ -5,7 +5,8 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/gzdzh-cn/dzhcore/config"
+	"github.com/gzdzh-cn/dzhcore/coreconfig"
+	"github.com/gzdzh-cn/dzhcore/envconfig"
 	"github.com/gzdzh-cn/dzhcore/log"
 	"github.com/gzdzh-cn/dzhcore/utility/env"
 	"github.com/gzdzh-cn/dzhcore/utility/util"
@@ -20,6 +21,12 @@ import (
 	"github.com/gogf/gf/v2/os/gcache"
 	"github.com/gogf/gf/v2/os/glog"
 	"github.com/gogf/gf/v2/util/guid"
+
+	_ "github.com/gzdzh-cn/dzhcore/contrib/drivers/mysql"
+	_ "github.com/gzdzh-cn/dzhcore/contrib/drivers/pgsql"
+	_ "github.com/gzdzh-cn/dzhcore/contrib/drivers/sqlite"
+	_ "github.com/gzdzh-cn/dzhcore/contrib/files/local"
+	_ "github.com/gzdzh-cn/dzhcore/contrib/files/oss"
 )
 
 var (
@@ -36,27 +43,15 @@ var (
 	DbRedisEnable  = false // 开启db 查询结果使用 redis 缓存
 	RedisConfig    *gredis.Config
 	DbExpire       int64
-
-	Logger = log.Logger // 日志记录器
-
 )
 
 func init() {
-	g.Log().Debug(ctx, "------------ dzhcore init start")
-	// getConfig()
-	// IsRedisMode = env.GetCfgWithDefault(ctx, "redis.enable", g.NewVar(false)).Bool()
-	// DbRedisEnable = env.GetCfgWithDefault(ctx, "redis.dbRedis.enable", g.NewVar(false)).Bool()
-	// DbExpire = env.GetCfgWithDefault(ctx, "redis.dbRedis.expire", g.NewVar(60000)).Int64() * int64(time.Millisecond)
 
-	// setDataBase()
-	// setLogger()
-	// SetVersions("dzhcore", Version)
-	// NodeSnowflake = CreateSnowflake(ctx) //雪花节点创建
-
-	g.Log().Debug(ctx, "------------ dzhcore init end")
 }
 
 func NewInit() {
+
+	coreconfig.LoadEnv()
 	getConfig()
 	IsRedisMode = env.GetCfgWithDefault(ctx, "redis.enable", g.NewVar(false)).Bool()
 	DbRedisEnable = env.GetCfgWithDefault(ctx, "redis.dbRedis.enable", g.NewVar(false)).Bool()
@@ -64,7 +59,7 @@ func NewInit() {
 
 	setDataBase()
 	setLogger()
-	SetVersions("dzhcore", Version)
+	SetVersions("dzhcore", coreconfig.Version)
 	NodeSnowflake = CreateSnowflake(ctx) //雪花节点创建
 
 	if IsRedisMode {
@@ -116,35 +111,34 @@ func NewInit() {
 	RegisterControllerSimples()
 
 	g.Log().Debug(ctx, "------------ dzhcore NewInit start")
-	g.Log().Debugf(ctx, "IsProd:%v, AppName:%v, IsDesktop:%v", config.IsProd, config.AppName, config.IsDesktop)
+	g.Log().Debugf(ctx, "IsProd:%v, AppName:%v, IsDesktop:%v", envconfig.IsProd, envconfig.AppName, envconfig.IsDesktop)
 
-	if config.IsProd {
+	if envconfig.IsProd {
 		g.Log().Info(ctx, "生产环境")
 	} else {
 		g.Log().Info(ctx, "开发环境")
 	}
-	g.Log().Debugf(ctx, "dzhcore version:%v", Version)
+	g.Log().Debugf(ctx, "dzhcore version:%v", coreconfig.Version)
 	g.Log().Debugf(ctx, "当前运行模式:%v", RunMode)
 	g.Log().Debugf(ctx, "当前实例ID:%v", ProcessFlag)
 	g.Log().Debugf(ctx, "是否redis缓存模式:%v", IsRedisMode)
 	g.Log().Debugf(ctx, "是否DbRedisEnable缓存模式:%v", DbRedisEnable)
-
 	g.Log().Debug(ctx, "------------ dzhcore NewInit end")
 
 }
 
 // 获取配置
 func getConfig() {
-	config.IsDesktop = env.GetCfgWithDefault(ctx, "core.isDesktop", g.NewVar(false)).Bool()
-	config.AppName = env.GetCfgWithDefault(ctx, "core.appName", g.NewVar("dzhgo")).String()
+	envconfig.IsDesktop = coreconfig.Config.Core.IsDesktop
+	envconfig.AppName = coreconfig.Config.Core.AppName
 	gbuildData := gbuild.Data()
-	if config.IsDesktop {
-		config.IsProd = env.GetCfgWithDefault(ctx, "core.isProd", g.NewVar(false)).Bool()
+	if envconfig.IsDesktop {
+		envconfig.IsProd = coreconfig.Config.Core.IsProd
 	} else {
 		if _, ok := gbuildData["builtTime"]; ok {
-			config.IsProd = true
+			envconfig.IsProd = true
 		} else {
-			config.IsProd = false
+			envconfig.IsProd = false
 		}
 	}
 
@@ -154,7 +148,7 @@ func getConfig() {
 	if RunMode == "core-tools" {
 		return
 	}
-	g.Log().Debugf(ctx, "config.IsProd:%v, config.IsDesktop:%v, config.AppName:%v", config.IsProd, config.IsDesktop, config.AppName)
+	g.Log().Debugf(ctx, "config.IsProd:%v, config.IsDesktop:%v, config.AppName:%v", envconfig.IsProd, envconfig.IsDesktop, envconfig.AppName)
 }
 
 // 数据库配置
@@ -188,7 +182,7 @@ func setDbConfig() {
 		dbNode.Timezone = ""
 	}
 
-	if config.IsDesktop && config.IsProd {
+	if envconfig.IsDesktop && envconfig.IsProd {
 		var (
 			source string
 		)
@@ -199,7 +193,7 @@ func setDbConfig() {
 			source = dbNode.Name
 		}
 		dbFileName := filepath.Base(source)
-		dbNode.Name = util.NewToolUtil().GetDataBasePath(dbFileName, config.IsProd, config.AppName, config.IsDesktop, source)
+		dbNode.Name = util.NewToolUtil().GetDataBasePath(dbFileName, envconfig.IsProd, envconfig.AppName, envconfig.IsDesktop, source)
 
 	}
 	g.Log().Debugf(ctx, "sqlite sourcePath:%v", dbNode.Name)
@@ -213,15 +207,15 @@ func setDbConfig() {
 // 设置sql日志
 func setSqlLogger() {
 	defaultPath := env.GetCfgWithDefault(ctx, "core.sqlLogger.path", g.NewVar("path")).String()
-	logPath := util.NewToolUtil().GetSqlLoggerPath(config.IsProd, config.AppName, config.IsDesktop, defaultPath)
+	logPath := util.NewToolUtil().GetSqlLoggerPath(envconfig.IsProd, envconfig.AppName, envconfig.IsDesktop, defaultPath)
 	configMap := g.Map{
 		"path":     logPath,
-		"file":     env.GetCfgWithDefault(ctx, "core.sqlLogger.file", g.NewVar("{Y-m-d}.log")).String(),
-		"level":    env.GetCfgWithDefault(ctx, "core.sqlLogger.level", g.NewVar("all")).String(),
-		"stdout":   env.GetCfgWithDefault(ctx, "core.sqlLogger.stdout", g.NewVar(false)).Bool(),
-		"flags":    env.GetCfgWithDefault(ctx, "core.sqlLogger.flags", g.NewVar(glog.F_TIME_STD)).Int(),
-		"stStatus": env.GetCfgWithDefault(ctx, "core.sqlLogger.stStatus", g.NewVar(1)).Int(),
-		"stSkip":   env.GetCfgWithDefault(ctx, "core.sqlLogger.stSkip", g.NewVar(0)).Int(),
+		"file":     coreconfig.Config.Core.SQLLogger.File,
+		"level":    coreconfig.Config.Core.SQLLogger.Level,
+		"stdout":   coreconfig.Config.Core.SQLLogger.Stdout,
+		"flags":    coreconfig.Config.Core.SQLLogger.Flags,
+		"stStatus": coreconfig.Config.Core.SQLLogger.StStatus,
+		"stSkip":   coreconfig.Config.Core.SQLLogger.StSkip,
 	}
 	dbLogger := glog.New()
 	dbLogger.SetConfigWithMap(configMap)
@@ -230,20 +224,20 @@ func setSqlLogger() {
 
 // 自定义日志
 func setLogger() {
-	if Logger == nil {
-		defaultPath := env.GetCfgWithDefault(ctx, "core.gfLogger.path", g.NewVar("path")).String()
-		logPath := util.NewToolUtil().GetLoggerPath(config.IsProd, config.AppName, config.IsDesktop, defaultPath)
-		config.ConfigMap = g.Map{
+	if log.Logger == nil {
+		defaultPath := coreconfig.Config.Core.GFLogger.Path
+		logPath := util.NewToolUtil().GetLoggerPath(envconfig.IsProd, envconfig.AppName, envconfig.IsDesktop, defaultPath)
+		envconfig.ConfigMap = g.Map{
 			"path":     logPath,
-			"file":     env.GetCfgWithDefault(ctx, "core.gfLogger.file", g.NewVar("{Y-m-d}.log")).String(),
-			"level":    env.GetCfgWithDefault(ctx, "core.gfLogger.level", g.NewVar("debug")).String(),
-			"stdout":   env.GetCfgWithDefault(ctx, "core.gfLogger.stdout", g.NewVar(true)).Bool(),
-			"flags":    env.GetCfgWithDefault(ctx, "core.gfLogger.flags", g.NewVar(44)).Int(),
-			"stStatus": env.GetCfgWithDefault(ctx, "core.gfLogger.stStatus", g.NewVar(1)).Int(),
-			"stSkip":   env.GetCfgWithDefault(ctx, "core.gfLogger.stSkip", g.NewVar(1)).Int(),
+			"file":     coreconfig.Config.Core.GFLogger.File,
+			"level":    coreconfig.Config.Core.GFLogger.Level,
+			"stdout":   coreconfig.Config.Core.GFLogger.Stdout,
+			"flags":    coreconfig.Config.Core.GFLogger.Flags,
+			"stStatus": coreconfig.Config.Core.GFLogger.StStatus,
+			"stSkip":   coreconfig.Config.Core.GFLogger.StSkip,
 		}
-		Logger = log.NewLogger(config.ConfigMap) // 初始化 RunLogger 变量
-		log.SetLogger(config.IsProd, config.AppName, config.IsDesktop, defaultPath, config.ConfigMap)
+		log.Logger = log.NewLogger(envconfig.ConfigMap) // 初始化 RunLogger 变量
+		log.SetLogger(envconfig.IsProd, envconfig.AppName, envconfig.IsDesktop, defaultPath, envconfig.ConfigMap)
 	}
 }
 

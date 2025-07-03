@@ -18,9 +18,9 @@ import (
 	"github.com/gogf/gf/v2/text/gregex"
 	"github.com/gogf/gf/v2/util/gconv"
 
-	"github.com/gzdzh-cn/dzhcore/config"
+	"github.com/gzdzh-cn/dzhcore/coreconfig"
+	"github.com/gzdzh-cn/dzhcore/envconfig"
 	"github.com/gzdzh-cn/dzhcore/utility/defineType"
-	"github.com/gzdzh-cn/dzhcore/utility/env"
 	"github.com/shopspring/decimal"
 )
 
@@ -149,8 +149,10 @@ func (t *ToolUtil) GetRootPath(isProd bool, appName string, isDesktop bool) stri
 				basePath = filepath.Join(homeDir, "."+appName)
 			}
 		}
-		if _, err := os.Stat(basePath); os.IsNotExist(err) {
-			os.MkdirAll(basePath, 0755)
+
+		if err := os.MkdirAll(basePath, 0755); err != nil {
+			g.Log().Error(t.ctx, err.Error())
+			panic(err)
 		}
 
 		return basePath
@@ -163,21 +165,43 @@ func (t *ToolUtil) GetRootPath(isProd bool, appName string, isDesktop bool) stri
 func (t *ToolUtil) GetDataBasePath(dbFileName string, isProd bool, appName string, isDesktop bool, defaultPath string) string {
 	if isProd && isDesktop {
 		rootPath := t.GetRootPath(isProd, appName, isDesktop)
-		logPath := filepath.Join(rootPath, "data", "database")
+		path := filepath.Join(rootPath, "data", "database")
 
 		// 创建目录，失败则 fallback
-		if err := os.MkdirAll(logPath, 0755); err != nil {
-			return "./data/database/" + dbFileName
+		if err := os.MkdirAll(path, 0755); err != nil {
+			g.Log().Error(t.ctx, err.Error())
+			panic(err)
 		}
 
-		return logPath + "/" + dbFileName
+		return path + "/" + dbFileName
 	}
 
 	if defaultPath != "" {
 		return defaultPath
 	}
-	return "./data/database/dzhgo_go.sqlite"
+	return "./data/database/" + dbFileName
 
+}
+
+// 获取上传文件路径
+func (t *ToolUtil) GetUploadPath(isProd bool, appName string, isDesktop bool, defaultPath string) string {
+
+	if isProd && isDesktop {
+		rootPath := t.GetRootPath(isProd, appName, isDesktop)
+		path := filepath.Join(rootPath, "uploads")
+		// 创建目录，失败则 fallback
+		if err := os.MkdirAll(path, 0755); err != nil {
+			g.Log().Error(t.ctx, err.Error())
+			panic(err)
+		}
+
+		return path
+	}
+
+	if defaultPath != "" {
+		return defaultPath
+	}
+	return coreconfig.Config.Server.ServerRoot + "/uploads"
 }
 
 // 获取日志路径
@@ -185,20 +209,21 @@ func (t *ToolUtil) GetLoggerPath(isProd bool, appName string, isDesktop bool, de
 
 	if isProd && isDesktop {
 		rootPath := t.GetRootPath(isProd, appName, isDesktop)
-		logPath := filepath.Join(rootPath, "data", "logs")
+		path := filepath.Join(rootPath, "data", "logs")
 
 		// 创建目录，失败则 fallback
-		if err := os.MkdirAll(logPath, 0755); err != nil {
-			return "./data/logs/"
+		if err := os.MkdirAll(path, 0755); err != nil {
+			g.Log().Error(t.ctx, err.Error())
+			panic(err)
 		}
 
-		return logPath
+		return path
 	}
 
 	if defaultPath != "" {
 		return defaultPath
 	}
-	return "./data/logs/"
+	return coreconfig.Config.Core.RunLogger.Path
 
 }
 
@@ -206,17 +231,18 @@ func (t *ToolUtil) GetSqlLoggerPath(isProd bool, appName string, isDesktop bool,
 
 	if isProd && isDesktop {
 		rootPath := t.GetRootPath(isProd, appName, isDesktop)
-		logPath := filepath.Join(rootPath, "data", "logs", "sql")
-		if _, err := os.Stat(logPath); os.IsNotExist(err) {
-			os.MkdirAll(logPath, 0755)
+		path := filepath.Join(rootPath, "data", "logs", "sql")
+		if err := os.MkdirAll(path, 0755); err != nil {
+			g.Log().Error(t.ctx, err.Error())
+			panic(err)
 		}
-		return logPath
+		return path
 	}
 
 	if defaultPath != "" {
 		return defaultPath
 	}
-	return "./data/logs/sql/"
+	return coreconfig.Config.Core.SQLLogger.Path
 
 }
 
@@ -225,17 +251,18 @@ func (t *ToolUtil) GetRunLoggerPath(isProd bool, appName string, isDesktop bool,
 
 	if isProd && isDesktop {
 		rootPath := t.GetRootPath(isProd, appName, isDesktop)
-		logPath := filepath.Join(rootPath, "data", "logs", "run")
-		if _, err := os.Stat(logPath); os.IsNotExist(err) {
-			os.MkdirAll(logPath, 0755)
+		path := filepath.Join(rootPath, "data", "logs", "run")
+		if err := os.MkdirAll(path, 0755); err != nil {
+			g.Log().Error(t.ctx, err.Error())
+			panic(err)
 		}
-		return logPath
+		return path
 	}
 
 	if defaultPath != "" {
 		return defaultPath
 	}
-	return "./data/logs/run/"
+	return coreconfig.Config.Core.RunLogger.Path
 
 }
 
@@ -253,14 +280,13 @@ func (t *ToolUtil) StdOutLog(ctx context.Context, startTime time.Time, memStatsS
 		suffix      = ""
 	)
 
-	defaultPath := env.GetCfgWithDefault(ctx, "core.runLogger.path", g.NewVar("./data/logs/run/")).String()
-	logPath = t.GetRunLoggerPath(config.IsProd, config.AppName, config.IsDesktop, defaultPath)
-
+	defaultPath := coreconfig.Config.Core.RunLogger.Path
+	logPath = t.GetRunLoggerPath(envconfig.IsProd, envconfig.AppName, envconfig.IsDesktop, defaultPath)
 	runLogger := &defineType.RunLogger{
 		Path:       logPath,
-		File:       g.Cfg().MustGet(ctx, "core.runLogger.file").String(),
-		RotateSize: g.Cfg().MustGet(ctx, "core.runLogger.rotateSize").String(),
-		Stdout:     g.Cfg().MustGet(ctx, "core.runLogger.stdout").Bool(),
+		File:       coreconfig.Config.Core.RunLogger.File,
+		RotateSize: coreconfig.Config.Core.RunLogger.RotateSize,
+		Stdout:     coreconfig.Config.Core.RunLogger.Stdout,
 	}
 
 	matches, err := gregex.MatchString(`^(.*)\{(.+)\}(.*)\.log$`, runLogger.File)

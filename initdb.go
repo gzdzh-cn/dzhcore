@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/gogf/gf/v2/container/garray"
+	"github.com/gzdzh-cn/dzhcore/coreconfig"
 	"github.com/gzdzh-cn/dzhcore/coredb"
 
 	"github.com/gogf/gf/v2/encoding/gjson"
@@ -26,7 +27,7 @@ func AddModel(model IModel) {
 }
 
 func InitModels() {
-	if Config.AutoMigrate {
+	if coreconfig.Config.Core.AutoMigrate {
 		g.Log().Debugf(ctx, "InitModels,数量： %v", len(Models))
 		for _, model := range Models {
 			g.Log().Debugf(ctx, "model: %v", model.TableName())

@@ -11,6 +11,7 @@ import (
 	"github.com/gogf/gf/v2/net/ghttp"
 	"github.com/gogf/gf/v2/text/gstr"
 	"github.com/gogf/gf/v2/util/gconv"
+	"github.com/gzdzh-cn/dzhcore/coreconfig"
 )
 
 var (
@@ -219,7 +220,7 @@ func RegisterController(c IController) {
 	if err != nil {
 		return
 	}
-	if Config.Eps {
+	if coreconfig.Config.Core.Eps {
 		//dao := sController.Service.GetDao()
 		//columns := getModelInfo(ctx, sController.Prefix, dao)
 		model := sController.Service.GetModel()
