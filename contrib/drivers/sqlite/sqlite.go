@@ -43,14 +43,12 @@ func (d *DriverSqlite) GetRootPath(configNode *gdb.ConfigNode) string {
 	} else {
 		source = configNode.Name
 	}
-	g.Log().Debug(ctx, "source1", source)
 
 	if config.IsDesktop && config.IsProd {
 		dbFileName := filepath.Base(source)
 		d.source = util.NewToolUtil().GetDataBasePath(dbFileName, config.IsProd, config.AppName, config.IsDesktop, source)
 		source = d.source
 	} else {
-		g.Log().Debug(ctx, "absolutePath 处理")
 
 		// ./database/dzhgo_go.sqlite 截取最后一个斜杠前的
 		dir := filepath.Dir(source)   // 目录部分
@@ -72,14 +70,6 @@ func (d *DriverSqlite) GetRootPath(configNode *gdb.ConfigNode) string {
 func (d *DriverSqlite) GetConn(configNode *gdb.ConfigNode) (db *gorm.DB, err error) {
 
 	sourcePath := d.GetRootPath(configNode)
-
-	g.Log().Debug(ctx, "source2", sourcePath)
-	// if absolutePath, _ := gfile.Search("./database/dzhgo_go.sqlite"); absolutePath != "" {
-	// 	sourcePath = absolutePath
-	// 	g.Log().Debug(ctx, "absolutePath2", absolutePath)
-	// }
-	// Multiple PRAGMAs can be specified, e.g.:
-	// path/to/some.db?_pragma=busy_timeout(5000)&_pragma=journal_mode(WAL)
 	if configNode.Extra != "" {
 		var (
 			options  string

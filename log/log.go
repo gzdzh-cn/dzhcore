@@ -10,8 +10,8 @@ import (
 )
 
 var (
-	ctx  = gctx.GetInitCtx()
-	gLog = glog.New()
+	ctx = gctx.GetInitCtx()
+
 	// IsProd    = false
 	// AppName   = "dzhgo"
 	RunLogger *SRunLogger
@@ -29,7 +29,6 @@ func init() {
 }
 
 func SetLogger(isProd bool, appName string, isDesktop bool, defaultPath string, configMap g.Map) {
-
 	RunLogger = NewRunLogger(configMap) // 初始化 RunLogger 变量
 	CfgM := g.Map{
 		"path":     configMap["path"],
@@ -42,9 +41,11 @@ func SetLogger(isProd bool, appName string, isDesktop bool, defaultPath string, 
 }
 
 func NewRunLogger(configMap g.Map) *SRunLogger {
-	gLog.SetConfigWithMap(configMap)
+	logNew := glog.New()
+	logNew.SetConfigWithMap(configMap)
+
 	logger := &SRunLogger{
-		gLog: gLog,
+		gLog: logNew,
 		ctx:  context.TODO(),
 	}
 	return logger

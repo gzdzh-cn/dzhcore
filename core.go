@@ -17,6 +17,7 @@ import (
 	"github.com/gogf/gf/v2/i18n/gi18n"
 	"github.com/gogf/gf/v2/os/gbuild"
 	"github.com/gogf/gf/v2/os/gcache"
+	"github.com/gogf/gf/v2/os/glog"
 	"github.com/gogf/gf/v2/util/guid"
 )
 
@@ -41,33 +42,15 @@ var (
 
 func init() {
 	g.Log().Debug(ctx, "------------ dzhcore init")
-	config.IsDesktop = GetCfgWithDefault(ctx, "core.isDesktop", g.NewVar(false)).Bool()
-	config.AppName = GetCfgWithDefault(ctx, "core.appName", g.NewVar("dzhgo")).String()
-	gbuildData := gbuild.Data()
-	if !config.IsDesktop {
-		if _, ok := gbuildData["builtTime"]; ok {
-			config.IsProd = true
-		} else {
-			config.IsProd = false
-		}
-	} else {
-		config.IsProd = GetCfgWithDefault(ctx, "core.isProd", g.NewVar(false)).Bool()
-	}
+	getConfig()
+	IsRedisMode = GetCfgWithDefault(ctx, "redis.enable", g.NewVar(false)).Bool()
+	DbRedisEnable = GetCfgWithDefault(ctx, "redis.dbRedis.enable", g.NewVar(false)).Bool()
+	DbExpire = GetCfgWithDefault(ctx, "redis.dbRedis.expire", g.NewVar(60000)).Int64() * int64(time.Millisecond)
 
-	if _, ok := gbuildData["mode"]; ok {
-		RunMode = gbuildData["mode"].(string)
-	}
-	if RunMode == "core-tools" {
-		return
-	}
 	setDataBase()
 	setRunLogger()
 	SetVersions("dzhcore", Version)
 	NodeSnowflake = CreateSnowflake(ctx) //雪花节点创建
-
-	IsRedisMode = GetCfgWithDefault(ctx, "redis.enable", g.NewVar(false)).Bool()
-	DbRedisEnable = GetCfgWithDefault(ctx, "redis.dbRedis.enable", g.NewVar(false)).Bool()
-	DbExpire = GetCfgWithDefault(ctx, "redis.dbRedis.expire", g.NewVar(60000)).Int64() * int64(time.Millisecond)
 
 	g.Log().Debug(ctx, "------------ dzhcore init")
 }
@@ -140,8 +123,37 @@ func NewInit() {
 
 }
 
-// 设置数据库配置
+// 获取配置
+func getConfig() {
+	config.IsDesktop = GetCfgWithDefault(ctx, "core.isDesktop", g.NewVar(false)).Bool()
+	config.AppName = GetCfgWithDefault(ctx, "core.appName", g.NewVar("dzhgo")).String()
+	gbuildData := gbuild.Data()
+	if !config.IsDesktop {
+		if _, ok := gbuildData["builtTime"]; ok {
+			config.IsProd = true
+		} else {
+			config.IsProd = false
+		}
+	} else {
+		config.IsProd = GetCfgWithDefault(ctx, "core.isProd", g.NewVar(false)).Bool()
+	}
+
+	if _, ok := gbuildData["mode"]; ok {
+		RunMode = gbuildData["mode"].(string)
+	}
+	if RunMode == "core-tools" {
+		return
+	}
+}
+
+// 数据库配置
 func setDataBase() {
+	setDbConfig()
+	setSqlLogger()
+}
+
+// database.default 配置
+func setDbConfig() {
 	// 读取 database.default 配置
 	dbConfVar, err := g.Cfg().Get(ctx, "database.default")
 	if err != nil {
@@ -152,46 +164,11 @@ func setDataBase() {
 		g.Log().Error(ctx, "未找到数据库配置 database.default")
 		return
 	}
-
-	type dbConfYaml struct {
-		Type      string `json:"type"`
-		Host      string `json:"host"`
-		Port      string `json:"port"`
-		User      string `json:"user"`
-		Pass      string `json:"pass"`
-		Name      string `json:"name"`
-		Charset   string `json:"charset"`
-		Timezone  string `json:"timezone"`
-		CreatedAt string `json:"createdAt"`
-		UpdatedAt string `json:"updatedAt"`
-		DeletedAt string `json:"deletedAt"`
-		Debug     bool   `json:"debug"`
-		Extra     string `json:"extra"`
-		Link      string `json:"link"`
-	}
-	var dbConf dbConfYaml
-	dbConfVar.Struct(&dbConf)
-
-	// 构造 gdb.ConfigNode
-	dbNode := gdb.ConfigNode{
-		Type:      dbConf.Type,
-		Host:      dbConf.Host,
-		Port:      dbConf.Port,
-		User:      dbConf.User,
-		Pass:      dbConf.Pass,
-		Name:      dbConf.Name,
-		Charset:   dbConf.Charset,
-		Timezone:  dbConf.Timezone,
-		CreatedAt: dbConf.CreatedAt,
-		UpdatedAt: dbConf.UpdatedAt,
-		DeletedAt: dbConf.DeletedAt,
-		Debug:     dbConf.Debug,
-		Extra:     dbConf.Extra,
-		Link:      dbConf.Link,
-	}
+	var dbNode *gdb.ConfigNode
+	dbConfVar.Struct(&dbNode)
 
 	// sqlite 只需要 type、name、extra、createdAt、updatedAt、deletedAt、debug
-	if dbConf.Type == "sqlite" {
+	if dbNode.Type == "sqlite" {
 		dbNode.Host = ""
 		dbNode.Port = ""
 		dbNode.User = ""
@@ -204,22 +181,41 @@ func setDataBase() {
 		var (
 			source string
 		)
-		if dbConf.Link != "" {
-			source = dbConf.Link
+		if dbNode.Link != "" {
+			source = dbNode.Link
 			dbNode.Link = ""
 		} else {
-			source = dbConf.Name
+			source = dbNode.Name
 		}
 		dbFileName := filepath.Base(source)
 		dbNode.Name = util.NewToolUtil().GetDataBasePath(dbFileName, config.IsProd, config.AppName, config.IsDesktop, source)
-		g.Log().Debug(ctx, "core dbConf.Name:%v", dbNode.Name)
-	}
 
+	}
+	g.Log().Debugf(ctx, "sqlite sourcePath:%v", dbNode.Name)
 	gdb.SetConfig(gdb.Config{
 		"default": gdb.ConfigGroup{
-			dbNode,
+			*dbNode,
 		},
 	})
+}
+
+// 设置sql日志
+func setSqlLogger() {
+	// 设置sql日志
+	defaultPath := GetCfgWithDefault(ctx, "core.sqlLogger.path", g.NewVar("path")).String()
+	logPath := util.NewToolUtil().GetSqlLoggerPath(config.IsProd, config.AppName, config.IsDesktop, defaultPath)
+	configMap := g.Map{
+		"path":     logPath,
+		"file":     GetCfgWithDefault(ctx, "core.sqlLogger.file", g.NewVar("{Y-m-d}.log")).String(),
+		"level":    GetCfgWithDefault(ctx, "core.sqlLogger.level", g.NewVar("all")).String(),
+		"stdout":   GetCfgWithDefault(ctx, "core.sqlLogger.stdout", g.NewVar(false)).Bool(),
+		"flags":    GetCfgWithDefault(ctx, "core.sqlLogger.flags", g.NewVar(glog.F_TIME_STD)).Int(),
+		"stStatus": GetCfgWithDefault(ctx, "core.sqlLogger.stStatus", g.NewVar(1)).Int(),
+		"stSkip":   GetCfgWithDefault(ctx, "core.sqlLogger.stSkip", g.NewVar(0)).Int(),
+	}
+	dbLogger := glog.New()
+	dbLogger.SetConfigWithMap(configMap)
+	g.DB().SetLogger(dbLogger)
 }
 
 // 自定义日志
@@ -229,6 +225,7 @@ func setRunLogger() {
 		logPath := util.NewToolUtil().GetLoggerPath(config.IsProd, config.AppName, config.IsDesktop, defaultPath)
 		config.ConfigMap = g.Map{
 			"path":     logPath,
+			"file":     GetCfgWithDefault(ctx, "core.gfLogger.file", g.NewVar("{Y-m-d}.log")).String(),
 			"level":    GetCfgWithDefault(ctx, "core.gfLogger.level", g.NewVar("debug")).String(),
 			"stdout":   GetCfgWithDefault(ctx, "core.gfLogger.stdout", g.NewVar(true)).Bool(),
 			"flags":    GetCfgWithDefault(ctx, "core.gfLogger.flags", g.NewVar(44)).Int(),

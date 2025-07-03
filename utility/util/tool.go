@@ -163,11 +163,11 @@ func (t *ToolUtil) GetRootPath(isProd bool, appName string, isDesktop bool) stri
 func (t *ToolUtil) GetDataBasePath(dbFileName string, isProd bool, appName string, isDesktop bool, defaultPath string) string {
 	if isProd && isDesktop {
 		rootPath := t.GetRootPath(isProd, appName, isDesktop)
-		logPath := filepath.Join(rootPath, "database")
+		logPath := filepath.Join(rootPath, "data", "database")
 
 		// 创建目录，失败则 fallback
 		if err := os.MkdirAll(logPath, 0755); err != nil {
-			return "./database/" + dbFileName
+			return "./data/database/" + dbFileName
 		}
 
 		return logPath + "/" + dbFileName
@@ -176,7 +176,7 @@ func (t *ToolUtil) GetDataBasePath(dbFileName string, isProd bool, appName strin
 	if defaultPath != "" {
 		return defaultPath
 	}
-	return "./database/dzhgo_go.sqlite"
+	return "./data/database/dzhgo_go.sqlite"
 
 }
 
@@ -202,30 +202,41 @@ func (t *ToolUtil) GetLoggerPath(isProd bool, appName string, isDesktop bool, de
 
 }
 
+func (t *ToolUtil) GetSqlLoggerPath(isProd bool, appName string, isDesktop bool, defaultPath string) string {
+
+	if isProd && isDesktop {
+		rootPath := t.GetRootPath(isProd, appName, isDesktop)
+		logPath := filepath.Join(rootPath, "logs", "sql")
+		if _, err := os.Stat(logPath); os.IsNotExist(err) {
+			os.MkdirAll(logPath, 0755)
+		}
+		return logPath
+	}
+
+	if defaultPath != "" {
+		return defaultPath
+	}
+	return "./data/logs/sql/"
+
+}
+
 // 带吞吐量，响应时间参数的运行日志
 func (t *ToolUtil) GetRunLoggerPath(isProd bool, appName string, isDesktop bool, defaultPath string) string {
 
-	if !isProd {
-		if defaultPath != "" {
-			return defaultPath
+	if isProd && isDesktop {
+		rootPath := t.GetRootPath(isProd, appName, isDesktop)
+		logPath := filepath.Join(rootPath, "logs", "run")
+		if _, err := os.Stat(logPath); os.IsNotExist(err) {
+			os.MkdirAll(logPath, 0755)
 		}
-		return "./data/logs/run/"
+		return logPath
 	}
 
-	if isProd && !isDesktop {
-		if defaultPath != "" {
-			return defaultPath
-		}
-		return "./data/logs/"
+	if defaultPath != "" {
+		return defaultPath
 	}
+	return "./data/logs/run/"
 
-	rootPath := t.GetRootPath(isProd, appName, isDesktop)
-	logPath := filepath.Join(rootPath, "logs", "run")
-	if _, err := os.Stat(logPath); os.IsNotExist(err) {
-		os.MkdirAll(logPath, 0755)
-	}
-
-	return logPath
 }
 
 // 日式打印运行时间
@@ -244,6 +255,7 @@ func (t *ToolUtil) StdOutLog(ctx context.Context, startTime time.Time, memStatsS
 
 	defaultPath := env.GetCfgWithDefault(ctx, "core.runLogger.path", g.NewVar("./data/logs/run/")).String()
 	logPath = t.GetRunLoggerPath(config.IsProd, config.AppName, config.IsDesktop, defaultPath)
+	g.Log().Debug(ctx, "logPath:%v", logPath)
 	runLogger := &defineType.RunLogger{
 		Path:       logPath,
 		File:       g.Cfg().MustGet(ctx, "core.runLogger.file").String(),
@@ -285,7 +297,7 @@ func (t *ToolUtil) StdOutLog(ctx context.Context, startTime time.Time, memStatsS
 
 	fname := outLogger_.Prefix + gtime.Now().Format(outLogger_.FileRule) + outLogger_.Suffix
 	fileName := fmt.Sprintf("%s.log", fname)
-	tempFile := fmt.Sprintf("%v%v", outLogger_.Path, fileName)
+	tempFile := fmt.Sprintf("%v/%v", outLogger_.Path, fileName)
 
 	throughputStringFixed := decimal.NewFromFloat(outLogger_.Throughput).StringFixed(2)
 
