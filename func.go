@@ -93,10 +93,11 @@ func ListenFunc(ctx g.Ctx) {
 					continue
 				}
 				if dataMap["Channel"] == "core:func" {
-					g.Log().Debugf(ctx, "执行函数", dataMap["Payload"])
+					g.Log().Debugf(ctx, "执行函数:%v", dataMap["Payload"])
+
 					err := RunFunc(ctx, dataMap["Payload"])
 					if err != nil {
-						g.Log().Errorf(ctx, "执行函数失败", err.Error())
+						g.Log().Errorf(ctx, "执行函数失败:%v", err.Error())
 					}
 				}
 			}

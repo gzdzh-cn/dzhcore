@@ -2,20 +2,22 @@ package dzhcore
 
 import (
 	"context"
+	"path/filepath"
 	"time"
 
 	"github.com/gzdzh-cn/dzhcore/config"
 	"github.com/gzdzh-cn/dzhcore/log"
 	"github.com/gzdzh-cn/dzhcore/utility/util"
+	"gorm.io/gorm"
 
 	"github.com/bwmarrin/snowflake"
+	"github.com/gogf/gf/v2/database/gdb"
 	"github.com/gogf/gf/v2/database/gredis"
 	"github.com/gogf/gf/v2/frame/g"
 	"github.com/gogf/gf/v2/i18n/gi18n"
 	"github.com/gogf/gf/v2/os/gbuild"
 	"github.com/gogf/gf/v2/os/gcache"
 	"github.com/gogf/gf/v2/util/guid"
-	"gorm.io/gorm"
 )
 
 var (
@@ -30,54 +32,48 @@ var (
 	NodeSnowflake  *snowflake.Node             // 雪花
 	DbCacheManager = gcache.New()
 	DbRedisEnable  = false // 开启db 查询结果使用 redis 缓存
-	redisConfig    = &gredis.Config{}
+	RedisConfig    *gredis.Config
 	DbExpire       int64
-	IsProd         = config.IsProd
-	AppName        = config.AppName
-	IsDesktop      = config.IsDesktop // 是否为桌面端
-	ConfigMap      = config.ConfigMap
-	RunLogger      = log.RunLogger // 日志记录器
+
+	RunLogger = log.RunLogger // 日志记录器
 
 )
 
 func init() {
-	IsDesktop = GetCfgWithDefault(ctx, "core.isDesktop", g.NewVar(false)).Bool()
-	AppName = GetCfgWithDefault(ctx, "core.appName", g.NewVar("dzhgo")).String()
+	g.Log().Debug(ctx, "------------ dzhcore init")
+	config.IsDesktop = GetCfgWithDefault(ctx, "core.isDesktop", g.NewVar(false)).Bool()
+	config.AppName = GetCfgWithDefault(ctx, "core.appName", g.NewVar("dzhgo")).String()
 	gbuildData := gbuild.Data()
-	if !IsDesktop {
+	if !config.IsDesktop {
 		if _, ok := gbuildData["builtTime"]; ok {
-			IsProd = true
+			config.IsProd = true
 		} else {
-			IsProd = false
+			config.IsProd = false
 		}
 	} else {
-		IsProd = GetCfgWithDefault(ctx, "core.isProd", g.NewVar(false)).Bool()
+		config.IsProd = GetCfgWithDefault(ctx, "core.isProd", g.NewVar(false)).Bool()
 	}
 
-	if RunLogger == nil {
-		defaultPath := GetCfgWithDefault(ctx, "core.gfLogger.path", g.NewVar("path")).String()
-		logPath := util.GetLoggerPath(IsProd, AppName, IsDesktop, defaultPath)
-		ConfigMap = g.Map{
-			"path":     logPath,
-			"level":    GetCfgWithDefault(ctx, "core.gfLogger.level", g.NewVar("debug")).String(),
-			"stdout":   GetCfgWithDefault(ctx, "core.gfLogger.stdout", g.NewVar(true)).Bool(),
-			"flags":    GetCfgWithDefault(ctx, "core.gfLogger.flags", g.NewVar(44)).Int(),
-			"stStatus": GetCfgWithDefault(ctx, "core.gfLogger.stStatus", g.NewVar(1)).Int(),
-			"stSkip":   GetCfgWithDefault(ctx, "core.gfLogger.stSkip", g.NewVar(1)).Int(),
-		}
-		RunLogger = log.NewRunLogger(ConfigMap) // 初始化 RunLogger 变量
-	}
-
-	SetVersions("dzhcore", Version)
-	NodeSnowflake = CreateSnowflake(ctx) //雪花节点创建
-	buildData := gbuild.Data()
-	if _, ok := buildData["mode"]; ok {
-		RunMode = buildData["mode"].(string)
+	if _, ok := gbuildData["mode"]; ok {
+		RunMode = gbuildData["mode"].(string)
 	}
 	if RunMode == "core-tools" {
 		return
 	}
+	setDataBase()
+	setRunLogger()
+	SetVersions("dzhcore", Version)
+	NodeSnowflake = CreateSnowflake(ctx) //雪花节点创建
+
 	IsRedisMode = GetCfgWithDefault(ctx, "redis.enable", g.NewVar(false)).Bool()
+	DbRedisEnable = GetCfgWithDefault(ctx, "redis.dbRedis.enable", g.NewVar(false)).Bool()
+	DbExpire = GetCfgWithDefault(ctx, "redis.dbRedis.expire", g.NewVar(60000)).Int64() * int64(time.Millisecond)
+
+	g.Log().Debug(ctx, "------------ dzhcore init")
+}
+
+func NewInit() {
+
 	if IsRedisMode {
 
 		redisVar, err := g.Cfg().Get(ctx, "redis.core")
@@ -86,12 +82,12 @@ func init() {
 			panic(err)
 		}
 		if !redisVar.IsEmpty() {
-			err = redisVar.Struct(redisConfig)
+			err = redisVar.Struct(RedisConfig)
 			if err != nil {
 				g.Log().Error(ctx, "初始化缓存失败,请检查配置文件")
 				return
 			}
-			redis, err := gredis.New(redisConfig)
+			redis, err := gredis.New(RedisConfig)
 			if err != nil {
 				g.Log().Error(ctx, "初始化缓存失败,请检查配置文件")
 				panic(err)
@@ -100,8 +96,6 @@ func init() {
 		}
 
 		//db 查询使用指定缓存分组
-		DbRedisEnable = GetCfgWithDefault(ctx, "redis.dbRedis.enable", g.NewVar(false)).Bool()
-		DbExpire = GetCfgWithDefault(ctx, "redis.dbRedis.expire", g.NewVar(60000)).Int64() * int64(time.Millisecond)
 		if DbRedisEnable {
 			dbRedisVar, err := g.Cfg().Get(ctx, "redis.core")
 			if err != nil {
@@ -110,8 +104,8 @@ func init() {
 			}
 			if !dbRedisVar.IsEmpty() {
 				dbNum := GetCfgWithDefault(ctx, "redis.dbRedis.db", g.NewVar(9)).Int()
-				redisConfig.Db = dbNum
-				redis, err := gredis.New(redisConfig)
+				RedisConfig.Db = dbNum
+				redis, err := gredis.New(RedisConfig)
 				if err != nil {
 					g.Log().Error(ctx, "初始化缓存失败,请检查配置文件")
 					panic(err)
@@ -122,14 +116,16 @@ func init() {
 		}
 	}
 
-}
-
-func NewInit() {
+	// 创建全部表
+	InitModels()
+	// 注册路由
+	RegisterControllers()
+	RegisterControllerSimples()
 
 	g.Log().Debug(ctx, "------------ dzhcore NewInit start")
-	g.Log().Debugf(ctx, "IsProd:%v, AppName:%v, IsDesktop:%v", IsProd, AppName, IsDesktop)
+	g.Log().Debugf(ctx, "IsProd:%v, AppName:%v, IsDesktop:%v", config.IsProd, config.AppName, config.IsDesktop)
 
-	if IsProd {
+	if config.IsProd {
 		g.Log().Info(ctx, "生产环境")
 	} else {
 		g.Log().Info(ctx, "开发环境")
@@ -140,15 +136,108 @@ func NewInit() {
 	g.Log().Debugf(ctx, "是否redis缓存模式:%v", IsRedisMode)
 	g.Log().Debugf(ctx, "是否DbRedisEnable缓存模式:%v", DbRedisEnable)
 
-	// 创建全部表
-	InitModels()
-
-	// 注册路由
-	RegisterControllers()
-	RegisterControllerSimples()
-
 	g.Log().Debug(ctx, "------------ dzhcore NewInit end")
 
+}
+
+// 设置数据库配置
+func setDataBase() {
+	// 读取 database.default 配置
+	dbConfVar, err := g.Cfg().Get(ctx, "database.default")
+	if err != nil {
+		g.Log().Error(ctx, "读取数据库配置失败", err)
+		return
+	}
+	if dbConfVar.IsEmpty() {
+		g.Log().Error(ctx, "未找到数据库配置 database.default")
+		return
+	}
+
+	type dbConfYaml struct {
+		Type      string `json:"type"`
+		Host      string `json:"host"`
+		Port      string `json:"port"`
+		User      string `json:"user"`
+		Pass      string `json:"pass"`
+		Name      string `json:"name"`
+		Charset   string `json:"charset"`
+		Timezone  string `json:"timezone"`
+		CreatedAt string `json:"createdAt"`
+		UpdatedAt string `json:"updatedAt"`
+		DeletedAt string `json:"deletedAt"`
+		Debug     bool   `json:"debug"`
+		Extra     string `json:"extra"`
+		Link      string `json:"link"`
+	}
+	var dbConf dbConfYaml
+	dbConfVar.Struct(&dbConf)
+
+	// 构造 gdb.ConfigNode
+	dbNode := gdb.ConfigNode{
+		Type:      dbConf.Type,
+		Host:      dbConf.Host,
+		Port:      dbConf.Port,
+		User:      dbConf.User,
+		Pass:      dbConf.Pass,
+		Name:      dbConf.Name,
+		Charset:   dbConf.Charset,
+		Timezone:  dbConf.Timezone,
+		CreatedAt: dbConf.CreatedAt,
+		UpdatedAt: dbConf.UpdatedAt,
+		DeletedAt: dbConf.DeletedAt,
+		Debug:     dbConf.Debug,
+		Extra:     dbConf.Extra,
+		Link:      dbConf.Link,
+	}
+
+	// sqlite 只需要 type、name、extra、createdAt、updatedAt、deletedAt、debug
+	if dbConf.Type == "sqlite" {
+		dbNode.Host = ""
+		dbNode.Port = ""
+		dbNode.User = ""
+		dbNode.Pass = ""
+		dbNode.Charset = ""
+		dbNode.Timezone = ""
+	}
+
+	if config.IsDesktop && config.IsProd {
+		var (
+			source string
+		)
+		if dbConf.Link != "" {
+			source = dbConf.Link
+			dbNode.Link = ""
+		} else {
+			source = dbConf.Name
+		}
+		dbFileName := filepath.Base(source)
+		dbNode.Name = util.NewToolUtil().GetDataBasePath(dbFileName, config.IsProd, config.AppName, config.IsDesktop, source)
+		g.Log().Debug(ctx, "core dbConf.Name:%v", dbNode.Name)
+	}
+
+	gdb.SetConfig(gdb.Config{
+		"default": gdb.ConfigGroup{
+			dbNode,
+		},
+	})
+}
+
+// 自定义日志
+func setRunLogger() {
+	if RunLogger == nil {
+		defaultPath := GetCfgWithDefault(ctx, "core.gfLogger.path", g.NewVar("path")).String()
+		logPath := util.NewToolUtil().GetLoggerPath(config.IsProd, config.AppName, config.IsDesktop, defaultPath)
+		config.ConfigMap = g.Map{
+			"path":     logPath,
+			"level":    GetCfgWithDefault(ctx, "core.gfLogger.level", g.NewVar("debug")).String(),
+			"stdout":   GetCfgWithDefault(ctx, "core.gfLogger.stdout", g.NewVar(true)).Bool(),
+			"flags":    GetCfgWithDefault(ctx, "core.gfLogger.flags", g.NewVar(44)).Int(),
+			"stStatus": GetCfgWithDefault(ctx, "core.gfLogger.stStatus", g.NewVar(1)).Int(),
+			"stSkip":   GetCfgWithDefault(ctx, "core.gfLogger.stSkip", g.NewVar(1)).Int(),
+		}
+		RunLogger = log.NewRunLogger(config.ConfigMap) // 初始化 RunLogger 变量
+		log.SetLogger(config.IsProd, config.AppName, config.IsDesktop, defaultPath, config.ConfigMap)
+	}
 }
 
 // BaseRes core.OK 正常返回

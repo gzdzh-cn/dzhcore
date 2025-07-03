@@ -29,7 +29,7 @@ type Oss struct {
 }
 
 func NewInit() {
-	RunLogger.Debug(ctx, "------------ oss NewInit start")
+	g.Log().Debug(ctx, "------------ oss NewInit start")
 	var (
 		err          error
 		driverNames  = g.SliceStr{"oss"}
@@ -46,7 +46,7 @@ func NewInit() {
 		}
 	}
 
-	RunLogger.Debug(ctx, "------------ oss NewInit end")
+	g.Log().Debug(ctx, "------------ oss NewInit end")
 }
 
 func New() corefile.Driver {
@@ -61,27 +61,27 @@ func New() corefile.Driver {
 	// Initialize oss client object.
 	client, err := oss.New(endpoint, accessKeyID, secretAccessKey)
 	if err != nil {
-		RunLogger.Fatal(ctx, err)
+		g.Log().Fatal(ctx, err)
 		return nil
 	}
 
 	exist, err := client.IsBucketExist(bucketName)
 
 	if err != nil {
-		RunLogger.Fatal(ctx, err)
+		g.Log().Fatal(ctx, err)
 		return nil
 	}
 
 	if exist {
-		RunLogger.Debug(ctx, fmt.Sprintf("存储桶%s已存在", bucketName))
+		g.Log().Debug(ctx, fmt.Sprintf("存储桶%s已存在", bucketName))
 	} else {
 		// 创建存储桶
 		err = client.CreateBucket(bucketName)
 		if err != nil {
-			RunLogger.Fatal(ctx, err)
+			g.Log().Fatal(ctx, err)
 			return nil
 		}
-		RunLogger.Debug(ctx, fmt.Sprintf("存储桶%s创建成功", bucketName))
+		g.Log().Debug(ctx, fmt.Sprintf("存储桶%s创建成功", bucketName))
 	}
 
 	bucket, _ := client.Bucket(bucketName)
@@ -109,7 +109,7 @@ func (m *Oss) Upload(ctx g.Ctx) (string, error) {
 
 	src, err := file.Open()
 	if err != nil {
-		RunLogger.Error(ctx, "文件打开失败")
+		g.Log().Error(ctx, "文件打开失败")
 	}
 	defer src.Close()
 
@@ -148,7 +148,7 @@ func (m *Oss) UploadFile(ctx g.Ctx, filePath string) (string, error) {
 
 	// 如果是网络图片，先下载到系统临时文件夹
 	if isWebPath {
-		RunLogger.Debugf(ctx, "web pic : %v", filePath)
+		g.Log().Debugf(ctx, "web pic : %v", filePath)
 		filePath, _ = downLoadToLocal(ctx, filePath)
 
 	}
@@ -160,7 +160,7 @@ func (m *Oss) UploadFile(ctx g.Ctx, filePath string) (string, error) {
 	err = m.Bucket.PutObjectFromFile(fullPath, filePath)
 
 	if err != nil {
-		RunLogger.Errorf(ctx, "上传失败 err : %v", err)
+		g.Log().Errorf(ctx, "上传失败 err : %v", err)
 		return "上传失败", err
 	}
 	if isWebPath {
@@ -183,14 +183,14 @@ func downLoadToLocal(ctx g.Ctx, filePath string) (string, error) {
 	// Make an HTTP GET request
 	response, err := http.Get(filePath)
 	if err != nil {
-		RunLogger.Error(ctx, "Make an HTTP GET request err:", err)
+		g.Log().Error(ctx, "Make an HTTP GET request err:", err)
 		return "", gerror.New("Make an HTTP GET request err:")
 	}
 	defer response.Body.Close()
 
 	// 检查响应状态码
 	if response.StatusCode != http.StatusOK {
-		RunLogger.Error(ctx, "HTTP response status code error:", response.Status)
+		g.Log().Error(ctx, "HTTP response status code error:", response.Status)
 		return "", gerror.New("HTTP response status code error")
 	}
 

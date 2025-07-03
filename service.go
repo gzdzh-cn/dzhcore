@@ -266,7 +266,7 @@ func (s *Service) ServiceList(ctx context.Context, req *ListReq) (data interface
 
 	result, err := m.All()
 	if err != nil {
-		g.Log().Errorf(ctx, "ServiceList error:", err.Error())
+		g.Log().Errorf(ctx, "ServiceList error:%v", err.Error())
 	}
 	if result == nil {
 		data = garray.New()
@@ -409,7 +409,7 @@ func (s *Service) ServicePage(ctx context.Context, req *PageReq) (data interface
 			dbRedisSlice = append(dbRedisSlice, addOrderby)
 		}
 	}
-	dbRedisKey := gstr.JoinAny(dbRedisSlice, "/")
+	// dbRedisKey := gstr.JoinAny(dbRedisSlice, "/")
 	//cachValue := g.DB().GetCache().MustGet(ctx, dbRedisKey)
 	//g.Log().Infof(ctx, "cachValue:%v", cachValue)
 	//g.DB().GetCore().ClearCacheAll(ctx)
@@ -431,7 +431,7 @@ func (s *Service) ServicePage(ctx context.Context, req *PageReq) (data interface
 		dbRedisSlice = append(dbRedisSlice, gstr.Replace(order, " ", "-"))
 	}
 
-	dbRedisKey = gstr.JoinAny(dbRedisSlice, "/")
+	dbRedisKey := gstr.JoinAny(dbRedisSlice, "/")
 
 	if DbRedisEnable {
 		m = m.Cache(gdb.CacheOption{
@@ -456,7 +456,7 @@ func (s *Service) ServicePage(ctx context.Context, req *PageReq) (data interface
 			"list":  result,
 			"total": total,
 		}
-		//return data, nil
+		return data, nil
 	} else {
 		data = g.Map{
 			"list": result,

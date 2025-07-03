@@ -5,8 +5,8 @@ import (
 )
 
 var (
-	IsProd    = false
-	AppName   = "dzhgo"
-	IsDesktop = false // 是否为桌面端
-	ConfigMap = g.Map{}
+	IsProd    bool
+	AppName   string
+	IsDesktop bool // 是否为桌面端
+	ConfigMap g.Map
 )

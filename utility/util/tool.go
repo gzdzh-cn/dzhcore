@@ -152,37 +152,54 @@ func (t *ToolUtil) GetRootPath(isProd bool, appName string, isDesktop bool) stri
 		if _, err := os.Stat(basePath); os.IsNotExist(err) {
 			os.MkdirAll(basePath, 0755)
 		}
+
 		return basePath
 	} else {
 		return "./"
 	}
+}
+
+// 获取数据库路径
+func (t *ToolUtil) GetDataBasePath(dbFileName string, isProd bool, appName string, isDesktop bool, defaultPath string) string {
+	if isProd && isDesktop {
+		rootPath := t.GetRootPath(isProd, appName, isDesktop)
+		logPath := filepath.Join(rootPath, "database")
+
+		// 创建目录，失败则 fallback
+		if err := os.MkdirAll(logPath, 0755); err != nil {
+			return "./database/" + dbFileName
+		}
+
+		return logPath + "/" + dbFileName
+	}
+
+	if defaultPath != "" {
+		return defaultPath
+	}
+	return "./database/dzhgo_go.sqlite"
 
 }
 
 // 获取日志路径
 func (t *ToolUtil) GetLoggerPath(isProd bool, appName string, isDesktop bool, defaultPath string) string {
 
-	if !isProd {
-		if defaultPath != "" {
-			return defaultPath
+	if isProd && isDesktop {
+		rootPath := t.GetRootPath(isProd, appName, isDesktop)
+		logPath := filepath.Join(rootPath, "logs")
+
+		// 创建目录，失败则 fallback
+		if err := os.MkdirAll(logPath, 0755); err != nil {
+			return "./data/logs/"
 		}
-		return "./data/logs/"
+
+		return logPath
 	}
 
-	if isProd && !isDesktop {
-		if defaultPath != "" {
-			return defaultPath
-		}
-		return "./data/logs/"
+	if defaultPath != "" {
+		return defaultPath
 	}
+	return "./data/logs/"
 
-	rootPath := t.GetRootPath(isProd, appName, isDesktop)
-	logPath := filepath.Join(rootPath, "logs")
-	if _, err := os.Stat(logPath); os.IsNotExist(err) {
-		os.MkdirAll(logPath, 0755)
-	}
-
-	return logPath
 }
 
 // 带吞吐量，响应时间参数的运行日志

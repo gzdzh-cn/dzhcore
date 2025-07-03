@@ -3,25 +3,20 @@ package log
 import (
 	"context"
 	"os"
-	"path/filepath"
-	"runtime"
 
 	"github.com/gogf/gf/v2/frame/g"
-	"github.com/gogf/gf/v2/os/gbuild"
 	"github.com/gogf/gf/v2/os/gctx"
 	"github.com/gogf/gf/v2/os/glog"
-
-	"github.com/gzdzh-cn/dzhcore/utility/env"
 )
 
 var (
-	ctx       = gctx.New()
-	gLog      = glog.New()
-	IsProd    = false
-	AppName   = "dzhgo"
+	ctx  = gctx.GetInitCtx()
+	gLog = glog.New()
+	// IsProd    = false
+	// AppName   = "dzhgo"
 	RunLogger *SRunLogger
-	IsDesktop = false // 是否为桌面端
-	ConfigMap = g.Map{}
+	// IsDesktop = false // 是否为桌面端
+	// ConfigMap = g.Map{}
 )
 
 type SRunLogger struct {
@@ -30,43 +25,20 @@ type SRunLogger struct {
 }
 
 func init() {
-	IsDesktop = env.GetCfgWithDefault(ctx, "core.isDesktop", g.NewVar(false)).Bool()
-	AppName = env.GetCfgWithDefault(ctx, "core.appName", g.NewVar("dzhgo")).String()
-	gbuildData := gbuild.Data()
-	if !IsDesktop {
-		if _, ok := gbuildData["builtTime"]; ok {
-			IsProd = true
-		} else {
-			IsProd = false
-		}
-	} else {
-		IsProd = env.GetCfgWithDefault(ctx, "core.isProd", g.NewVar(false)).Bool()
-	}
-
-	defaultPath := env.GetCfgWithDefault(ctx, "core.gfLogger.path", g.NewVar("path")).String()
-	logPath := GetLoggerPath(IsProd, AppName, IsDesktop, defaultPath)
-	ConfigMap = g.Map{
-		"path":     logPath,
-		"level":    env.GetCfgWithDefault(ctx, "core.gfLogger.level", g.NewVar("debug")).String(),
-		"stdout":   env.GetCfgWithDefault(ctx, "core.gfLogger.stdout", g.NewVar(true)).Bool(),
-		"flags":    env.GetCfgWithDefault(ctx, "core.gfLogger.flags", g.NewVar(44)).Int(),
-		"stStatus": env.GetCfgWithDefault(ctx, "core.gfLogger.stStatus", g.NewVar(1)).Int(),
-		"stSkip":   env.GetCfgWithDefault(ctx, "core.gfLogger.stSkip", g.NewVar(1)).Int(),
-	}
 
 }
 
-func SetLogger() {
+func SetLogger(isProd bool, appName string, isDesktop bool, defaultPath string, configMap g.Map) {
 
-	RunLogger = NewRunLogger(ConfigMap) // 初始化 RunLogger 变量
+	RunLogger = NewRunLogger(configMap) // 初始化 RunLogger 变量
 	CfgM := g.Map{
-		"path":     ConfigMap["path"],
-		"level":    env.GetCfgWithDefault(ctx, "core.gfLogger.level", g.NewVar("debug")).String(),
-		"stdout":   env.GetCfgWithDefault(ctx, "core.gfLogger.stdout", g.NewVar(true)).Bool(),
-		"flags":    env.GetCfgWithDefault(ctx, "core.gfLogger.flags", g.NewVar(44)).Int(),
-		"stStatus": env.GetCfgWithDefault(ctx, "core.gfLogger.stStatus", g.NewVar(1)).Int(),
+		"path":     configMap["path"],
+		"level":    getCfgWithDefault(ctx, "core.gfLogger.level", g.NewVar("debug")).String(),
+		"stdout":   getCfgWithDefault(ctx, "core.gfLogger.stdout", g.NewVar(true)).Bool(),
+		"flags":    getCfgWithDefault(ctx, "core.gfLogger.flags", g.NewVar(44)).Int(),
+		"stStatus": getCfgWithDefault(ctx, "core.gfLogger.stStatus", g.NewVar(1)).Int(),
 	}
-	g.Log().SetConfigWithMap(CfgM) //
+	g.Log().SetConfigWithMap(CfgM)
 }
 
 func NewRunLogger(configMap g.Map) *SRunLogger {
@@ -137,46 +109,13 @@ func (l *SRunLogger) Fatalf(ctx context.Context, message string, args ...interfa
 	os.Exit(1)
 }
 
-// 获取日志路径
-func GetLoggerPath(isProd bool, appName string, isDesktop bool, defaultPath string) string {
-
-	if !isProd {
-		if defaultPath != "" {
-			return defaultPath
-		}
-		return "./data/logs/"
+func getCfgWithDefault(ctx g.Ctx, key string, defaultValue *g.Var) *g.Var {
+	value, err := g.Cfg().GetWithEnv(ctx, key)
+	if err != nil {
+		return defaultValue
 	}
-
-	if isProd && !isDesktop {
-		if defaultPath != "" {
-			return defaultPath
-		}
-		return "./data/logs/"
+	if value.IsEmpty() || value.IsNil() {
+		return defaultValue
 	}
-
-	// 获取适合当前操作系统的基础存储路径
-	var basePath string
-	switch runtime.GOOS {
-	case "windows":
-		appData := os.Getenv("APPDATA")
-		if appData == "" {
-			appData = filepath.Join(os.Getenv("USERPROFILE"), "AppData", "Roaming")
-		}
-		basePath = filepath.Join(appData, appName+"/logs/")
-	case "darwin":
-		homeDir, _ := os.UserHomeDir()
-		basePath = filepath.Join(homeDir, "Library", "Application Support", appName+"/logs/")
-	default: // linux 和其他类 Unix 系统
-		basePath = "/var/lib/" + appName + "/logs/"
-		// 如果不是 root 用户，使用用户目录
-		if os.Getuid() != 0 {
-			homeDir, _ := os.UserHomeDir()
-			basePath = filepath.Join(homeDir, "."+appName+"/logs/")
-		}
-	}
-	if _, err := os.Stat(basePath); os.IsNotExist(err) {
-		os.MkdirAll(basePath, 0755)
-	}
-	return basePath
-
+	return value
 }

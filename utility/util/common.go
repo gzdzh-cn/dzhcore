@@ -2,8 +2,6 @@ package util
 
 import (
 	"os"
-	"path/filepath"
-	"runtime"
 	"strings"
 
 	"github.com/gogf/gf/v2/frame/g"
@@ -106,48 +104,4 @@ func Getenv(key string, defaultValue string) string {
 		return defaultValue
 	}
 	return value
-}
-
-// 获取日志路径
-func GetLoggerPath(isProd bool, appName string, isDesktop bool, defaultPath string) string {
-
-	if !isProd {
-		if defaultPath != "" {
-			return defaultPath
-		}
-		return "./data/logs/"
-	}
-
-	if isProd && !isDesktop {
-		if defaultPath != "" {
-			return defaultPath
-		}
-		return "./data/logs/"
-	}
-
-	// 获取适合当前操作系统的基础存储路径
-	var basePath string
-	switch runtime.GOOS {
-	case "windows":
-		appData := os.Getenv("APPDATA")
-		if appData == "" {
-			appData = filepath.Join(os.Getenv("USERPROFILE"), "AppData", "Roaming")
-		}
-		basePath = filepath.Join(appData, appName+"/logs/")
-	case "darwin":
-		homeDir, _ := os.UserHomeDir()
-		basePath = filepath.Join(homeDir, "Library", "Application Support", appName+"/logs/")
-	default: // linux 和其他类 Unix 系统
-		basePath = "/var/lib/" + appName + "/logs/"
-		// 如果不是 root 用户，使用用户目录
-		if os.Getuid() != 0 {
-			homeDir, _ := os.UserHomeDir()
-			basePath = filepath.Join(homeDir, "."+appName+"/logs/")
-		}
-	}
-	if _, err := os.Stat(basePath); os.IsNotExist(err) {
-		os.MkdirAll(basePath, 0755)
-	}
-	return basePath
-
 }
