@@ -7,6 +7,7 @@ import (
 	"github.com/gogf/gf/v2/os/gbuild"
 	"github.com/gogf/gf/v2/os/gctx"
 	"github.com/gzdzh-cn/dzhcore/config"
+	"github.com/gzdzh-cn/dzhcore/utility/env"
 	"github.com/gzdzh-cn/dzhcore/utility/util"
 	"github.com/joho/godotenv"
 )
@@ -57,35 +58,35 @@ func init() {
 func newConfig() *sConfig {
 
 	newCfg := &sConfig{
-		AutoMigrate: GetCfgWithDefault(ctx, "core.autoMigrate", g.NewVar(false)).Bool(),
-		Eps:         GetCfgWithDefault(ctx, "core.eps", g.NewVar(false)).Bool(),
+		AutoMigrate: env.GetCfgWithDefault(ctx, "core.autoMigrate", g.NewVar(false)).Bool(),
+		Eps:         env.GetCfgWithDefault(ctx, "core.eps", g.NewVar(false)).Bool(),
 		File: &file{
-			Mode:   GetCfgWithDefault(ctx, "core.file.mode", g.NewVar("none")).String(),
-			Domain: GetCfgWithDefault(ctx, "core.file.domain", g.NewVar("http://127.0.0.1:8200")).String(),
+			Mode:   env.GetCfgWithDefault(ctx, "core.file.mode", g.NewVar("none")).String(),
+			Domain: env.GetCfgWithDefault(ctx, "core.file.domain", g.NewVar("http://127.0.0.1:8200")).String(),
 			Oss: &oss{
 				Endpoint: func() string {
 					if !config.IsProd {
-						return util.Getenv("OSS_ENDPOINT", GetCfgWithDefault(ctx, "core.file.oss.endpoint", g.NewVar("")).String())
+						return util.Getenv("OSS_ENDPOINT", env.GetCfgWithDefault(ctx, "core.file.oss.endpoint", g.NewVar("")).String())
 					}
-					return GetCfgWithDefault(ctx, "core.file.oss.endpoint", g.NewVar("")).String()
+					return env.GetCfgWithDefault(ctx, "core.file.oss.endpoint", g.NewVar("")).String()
 				}(),
 				AccessKeyID: func() string {
 					if !config.IsProd {
-						return util.Getenv("OSS_ACCESS_KEY_ID", GetCfgWithDefault(ctx, "core.file.oss.accessKeyID", g.NewVar("")).String())
+						return util.Getenv("OSS_ACCESS_KEY_ID", env.GetCfgWithDefault(ctx, "core.file.oss.accessKeyID", g.NewVar("")).String())
 					}
-					return GetCfgWithDefault(ctx, "core.file.oss.accessKeyID", g.NewVar("")).String()
+					return env.GetCfgWithDefault(ctx, "core.file.oss.accessKeyID", g.NewVar("")).String()
 				}(),
 				SecretAccessKey: func() string {
 					if !config.IsProd {
-						return util.Getenv("OSS_SECRET_ACCESS_KEY", GetCfgWithDefault(ctx, "core.file.oss.secretAccessKey", g.NewVar("")).String())
+						return util.Getenv("OSS_SECRET_ACCESS_KEY", env.GetCfgWithDefault(ctx, "core.file.oss.secretAccessKey", g.NewVar("")).String())
 					}
-					return GetCfgWithDefault(ctx, "core.file.oss.secretAccessKey", g.NewVar("")).String()
+					return env.GetCfgWithDefault(ctx, "core.file.oss.secretAccessKey", g.NewVar("")).String()
 				}(),
 				BucketName: func() string {
 					if !config.IsProd {
-						return util.Getenv("OSS_BUCKET_NAME", GetCfgWithDefault(ctx, "core.file.oss.bucketName", g.NewVar("")).String())
+						return util.Getenv("OSS_BUCKET_NAME", env.GetCfgWithDefault(ctx, "core.file.oss.bucketName", g.NewVar("")).String())
 					}
-					return GetCfgWithDefault(ctx, "core.file.oss.bucketName", g.NewVar("")).String()
+					return env.GetCfgWithDefault(ctx, "core.file.oss.bucketName", g.NewVar("")).String()
 				}(),
 				UseSSL: func() bool {
 					if !config.IsProd {
@@ -97,23 +98,11 @@ func newConfig() *sConfig {
 							return lower == "1" || lower == "true" || lower == "yes" || lower == "on"
 						}
 					}
-					return GetCfgWithDefault(ctx, "core.file.oss.useSSL", g.NewVar(false)).Bool()
+					return env.GetCfgWithDefault(ctx, "core.file.oss.useSSL", g.NewVar(false)).Bool()
 				}(),
-				Location: util.Getenv("OSS_LOCATION", GetCfgWithDefault(ctx, "core.file.oss.location", g.NewVar("")).String()),
+				Location: util.Getenv("OSS_LOCATION", env.GetCfgWithDefault(ctx, "core.file.oss.location", g.NewVar("")).String()),
 			},
 		},
 	}
 	return newCfg
-}
-
-// GetCfgWithDefault get config with default value
-func GetCfgWithDefault(ctx g.Ctx, key string, defaultValue *g.Var) *g.Var {
-	value, err := g.Cfg().GetWithEnv(ctx, key)
-	if err != nil {
-		return defaultValue
-	}
-	if value.IsEmpty() || value.IsNil() {
-		return defaultValue
-	}
-	return value
 }

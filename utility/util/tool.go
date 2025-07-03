@@ -185,7 +185,7 @@ func (t *ToolUtil) GetLoggerPath(isProd bool, appName string, isDesktop bool, de
 
 	if isProd && isDesktop {
 		rootPath := t.GetRootPath(isProd, appName, isDesktop)
-		logPath := filepath.Join(rootPath, "logs")
+		logPath := filepath.Join(rootPath, "data", "logs")
 
 		// 创建目录，失败则 fallback
 		if err := os.MkdirAll(logPath, 0755); err != nil {
@@ -206,7 +206,7 @@ func (t *ToolUtil) GetSqlLoggerPath(isProd bool, appName string, isDesktop bool,
 
 	if isProd && isDesktop {
 		rootPath := t.GetRootPath(isProd, appName, isDesktop)
-		logPath := filepath.Join(rootPath, "logs", "sql")
+		logPath := filepath.Join(rootPath, "data", "logs", "sql")
 		if _, err := os.Stat(logPath); os.IsNotExist(err) {
 			os.MkdirAll(logPath, 0755)
 		}
@@ -225,7 +225,7 @@ func (t *ToolUtil) GetRunLoggerPath(isProd bool, appName string, isDesktop bool,
 
 	if isProd && isDesktop {
 		rootPath := t.GetRootPath(isProd, appName, isDesktop)
-		logPath := filepath.Join(rootPath, "logs", "run")
+		logPath := filepath.Join(rootPath, "data", "logs", "run")
 		if _, err := os.Stat(logPath); os.IsNotExist(err) {
 			os.MkdirAll(logPath, 0755)
 		}
@@ -255,7 +255,7 @@ func (t *ToolUtil) StdOutLog(ctx context.Context, startTime time.Time, memStatsS
 
 	defaultPath := env.GetCfgWithDefault(ctx, "core.runLogger.path", g.NewVar("./data/logs/run/")).String()
 	logPath = t.GetRunLoggerPath(config.IsProd, config.AppName, config.IsDesktop, defaultPath)
-	g.Log().Debug(ctx, "logPath:%v", logPath)
+
 	runLogger := &defineType.RunLogger{
 		Path:       logPath,
 		File:       g.Cfg().MustGet(ctx, "core.runLogger.file").String(),

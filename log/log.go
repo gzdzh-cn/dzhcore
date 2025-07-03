@@ -7,6 +7,7 @@ import (
 	"github.com/gogf/gf/v2/frame/g"
 	"github.com/gogf/gf/v2/os/gctx"
 	"github.com/gogf/gf/v2/os/glog"
+	"github.com/gzdzh-cn/dzhcore/utility/env"
 )
 
 var (
@@ -14,7 +15,7 @@ var (
 
 	// IsProd    = false
 	// AppName   = "dzhgo"
-	RunLogger *SRunLogger
+	Logger *SRunLogger
 	// IsDesktop = false // 是否为桌面端
 	// ConfigMap = g.Map{}
 )
@@ -29,18 +30,18 @@ func init() {
 }
 
 func SetLogger(isProd bool, appName string, isDesktop bool, defaultPath string, configMap g.Map) {
-	RunLogger = NewRunLogger(configMap) // 初始化 RunLogger 变量
+	Logger = NewLogger(configMap) // 初始化 RunLogger 变量
 	CfgM := g.Map{
 		"path":     configMap["path"],
-		"level":    getCfgWithDefault(ctx, "core.gfLogger.level", g.NewVar("debug")).String(),
-		"stdout":   getCfgWithDefault(ctx, "core.gfLogger.stdout", g.NewVar(true)).Bool(),
-		"flags":    getCfgWithDefault(ctx, "core.gfLogger.flags", g.NewVar(44)).Int(),
-		"stStatus": getCfgWithDefault(ctx, "core.gfLogger.stStatus", g.NewVar(1)).Int(),
+		"level":    env.GetCfgWithDefault(ctx, "core.gfLogger.level", g.NewVar("debug")).String(),
+		"stdout":   env.GetCfgWithDefault(ctx, "core.gfLogger.stdout", g.NewVar(true)).Bool(),
+		"flags":    env.GetCfgWithDefault(ctx, "core.gfLogger.flags", g.NewVar(44)).Int(),
+		"stStatus": env.GetCfgWithDefault(ctx, "core.gfLogger.stStatus", g.NewVar(1)).Int(),
 	}
 	g.Log().SetConfigWithMap(CfgM)
 }
 
-func NewRunLogger(configMap g.Map) *SRunLogger {
+func NewLogger(configMap g.Map) *SRunLogger {
 	logNew := glog.New()
 	logNew.SetConfigWithMap(configMap)
 
@@ -110,13 +111,13 @@ func (l *SRunLogger) Fatalf(ctx context.Context, message string, args ...interfa
 	os.Exit(1)
 }
 
-func getCfgWithDefault(ctx g.Ctx, key string, defaultValue *g.Var) *g.Var {
-	value, err := g.Cfg().GetWithEnv(ctx, key)
-	if err != nil {
-		return defaultValue
-	}
-	if value.IsEmpty() || value.IsNil() {
-		return defaultValue
-	}
-	return value
-}
+// func getCfgWithDefault(ctx g.Ctx, key string, defaultValue *g.Var) *g.Var {
+// 	value, err := g.Cfg().GetWithEnv(ctx, key)
+// 	if err != nil {
+// 		return defaultValue
+// 	}
+// 	if value.IsEmpty() || value.IsNil() {
+// 		return defaultValue
+// 	}
+// 	return value
+// }
