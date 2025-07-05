@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 
 	"github.com/gogf/gf/v2/os/gctx"
+	"github.com/gogf/gf/v2/os/gfile"
 
 	"github.com/gzdzh-cn/dzhcore/coreconfig"
 	"github.com/gzdzh-cn/dzhcore/corefile"
@@ -16,8 +17,7 @@ import (
 )
 
 var (
-	ctx        = gctx.GetInitCtx()
-	uploadPath = ""
+	ctx = gctx.GetInitCtx()
 )
 
 type Local struct {
@@ -36,19 +36,26 @@ func init() {
 			panic(err)
 		}
 	}
-	// s := g.Server()
-	// if !gfile.Exists("./public/uploads") {
-	// 	err := gfile.Mkdir("./public/uploads")
-	// 	if err != nil {
-	// 		panic(err)
-	// 	}
-	// }
-	// s.AddStaticPath("/public", "./public")
 
 	g.Log().Debug(ctx, "------------ local init end")
 }
 
 func NewInit() {
+	g.Log().Debug(ctx, "------------ local NewInit start")
+	uploadPath := util.NewToolUtil().GetUploadPath(coreconfig.Config.Core.IsProd, coreconfig.Config.Core.AppName, coreconfig.Config.Core.IsDesktop, coreconfig.Config.Core.File.UploadPath)
+
+	if !gfile.Exists(uploadPath) {
+		err := gfile.Mkdir(uploadPath)
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	s := g.Server()
+	s.AddStaticPath(coreconfig.Config.Core.File.UploadPath, uploadPath)
+
+	g.Log().Debugf(ctx, "uploadPath:%v", uploadPath)
+	g.Log().Debug(ctx, "------------ local NewInit end")
 
 }
 
@@ -84,7 +91,7 @@ func (l *Local) Upload(ctx g.Ctx) (string, error) {
 		return path, err
 	}
 
-	return coreconfig.Config.Core.File.Domain + "/" + path, err
+	return coreconfig.Config.Core.File.FilePrefix + "/" + path, err
 
 }
 

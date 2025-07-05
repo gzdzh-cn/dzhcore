@@ -186,22 +186,16 @@ func (t *ToolUtil) GetDataBasePath(dbFileName string, isProd bool, appName strin
 // 获取上传文件路径
 func (t *ToolUtil) GetUploadPath(isProd bool, appName string, isDesktop bool, defaultPath string) string {
 
-	if isProd && isDesktop {
-		rootPath := t.GetRootPath(isProd, appName, isDesktop)
-		path := filepath.Join(rootPath, "uploads")
-		// 创建目录，失败则 fallback
-		if err := os.MkdirAll(path, 0755); err != nil {
-			g.Log().Error(t.ctx, err.Error())
-			panic(err)
-		}
-
-		return path
+	rootPath := t.GetRootPath(isProd, appName, isDesktop)
+	path := filepath.Join(rootPath, coreconfig.Config.Core.File.UploadPath)
+	// 创建目录，失败则 fallback
+	if err := os.MkdirAll(path, 0755); err != nil {
+		g.Log().Error(t.ctx, err.Error())
+		panic(err)
 	}
 
-	if defaultPath != "" {
-		return defaultPath
-	}
-	return coreconfig.Config.Server.ServerRoot + "/uploads"
+	return path
+
 }
 
 // 获取日志路径

@@ -46,16 +46,17 @@ type DatabaseConfig struct {
 
 // Redis相关配置
 type RedisConfig struct {
-	Enable  int           `yaml:"enable"`  // 是否启用Redis
-	DBRedis DBRedisConfig `yaml:"dbRedis"` // 数据库缓存相关
+	Enable  bool          `yaml:"enable"`  // 是否启用Redis
 	Core    RedisCore     `yaml:"core"`    // Redis核心配置
+	DBRedis DBRedisConfig `yaml:"dbRedis"` // 数据库缓存相关
+
 }
 
 // 数据库缓存相关配置
 type DBRedisConfig struct {
-	Enable int `yaml:"enable"` // 是否启用数据库缓存
-	Expire int `yaml:"expire"` // 缓存过期时间（毫秒）
-	DB     int `yaml:"db"`     // Redis数据库编号
+	Enable bool  `yaml:"enable"` // 是否启用数据库缓存
+	Expire int64 `yaml:"expire"` // 缓存过期时间（毫秒）
+	DB     int   `yaml:"db"`     // Redis数据库编号
 }
 
 // Redis核心配置
@@ -118,9 +119,10 @@ type RunLogger struct {
 
 // 文件上传配置
 type FileConfig struct {
-	Mode   string    `yaml:"mode"`   // 上传模式（local/oss）
-	Domain string    `yaml:"domain"` // 域名或目录映射
-	Oss    OssConfig `yaml:"oss"`    // OSS配置
+	Mode       string    `yaml:"mode"`       // 上传模式（local/oss）
+	FilePrefix string    `yaml:"filePrefix"` // 文件前缀
+	UploadPath string    `yaml:"uploadPath"` // 上传文件路径
+	Oss        OssConfig `yaml:"oss"`        // OSS配置
 }
 
 // OSS配置

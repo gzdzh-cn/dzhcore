@@ -11,7 +11,7 @@ import (
 var (
 	ctx     = gctx.GetInitCtx()
 	Config  *defineStruct.Config
-	Version = "v1.2.9"
+	Version = "v1.3.0"
 )
 
 func init() {
@@ -55,16 +55,16 @@ func newConfig() *defineStruct.Config {
 			Debug:     env.GetCfgWithDefault(ctx, "database.debug", g.NewVar(false)).Bool(),
 		},
 		Redis: defineStruct.RedisConfig{
-			Enable: env.GetCfgWithDefault(ctx, "redis.enable", g.NewVar(0)).Int(),
-			DBRedis: defineStruct.DBRedisConfig{
-				Enable: env.GetCfgWithDefault(ctx, "redis.dbRedis.enable", g.NewVar(0)).Int(),
-				Expire: env.GetCfgWithDefault(ctx, "redis.dbRedis.expire", g.NewVar(60000)).Int(),
-				DB:     env.GetCfgWithDefault(ctx, "redis.dbRedis.db", g.NewVar(9)).Int(),
-			},
+			Enable: env.GetCfgWithDefault(ctx, "redis.enable", g.NewVar(false)).Bool(),
 			Core: defineStruct.RedisCore{
 				Address: env.GetCfgWithDefault(ctx, "redis.core.address", g.NewVar("127.0.0.1:6379")).String(),
 				DB:      env.GetCfgWithDefault(ctx, "redis.core.db", g.NewVar(0)).Int(),
 				Pass:    env.GetCfgWithDefault(ctx, "redis.core.pass", g.NewVar("")).String(),
+			},
+			DBRedis: defineStruct.DBRedisConfig{
+				Enable: env.GetCfgWithDefault(ctx, "redis.dbRedis.enable", g.NewVar(false)).Bool(),
+				Expire: env.GetCfgWithDefault(ctx, "redis.dbRedis.expire", g.NewVar(60000)).Int64(),
+				DB:     env.GetCfgWithDefault(ctx, "redis.dbRedis.db", g.NewVar(9)).Int(),
 			},
 		},
 		Core: defineStruct.CoreConfig{
@@ -98,8 +98,9 @@ func newConfig() *defineStruct.Config {
 				RotateSize: env.GetCfgWithDefault(ctx, "core.runLogger.rotateSize", g.NewVar("3MB")).String(),
 			},
 			File: defineStruct.FileConfig{
-				Mode:   env.GetCfgWithDefault(ctx, "core.file.mode", g.NewVar("local")).String(),
-				Domain: env.GetCfgWithDefault(ctx, "core.file.domain", g.NewVar("")).String(),
+				Mode:       env.GetCfgWithDefault(ctx, "core.file.mode", g.NewVar("local")).String(),
+				FilePrefix: env.GetCfgWithDefault(ctx, "core.file.filePrefix", g.NewVar("")).String(),
+				UploadPath: env.GetCfgWithDefault(ctx, "core.file.uploadPath", g.NewVar("resource/uploads")).String(),
 				Oss: defineStruct.OssConfig{
 					Endpoint:        env.GetCfgWithDefault(ctx, "core.file.oss.endpoint", g.NewVar("")).String(),
 					AccessKeyID:     env.GetCfgWithDefault(ctx, "core.file.oss.accessKeyID", g.NewVar("")).String(),

@@ -25,6 +25,7 @@ import (
 	_ "github.com/gzdzh-cn/dzhcore/contrib/drivers/mysql"
 	_ "github.com/gzdzh-cn/dzhcore/contrib/drivers/pgsql"
 	_ "github.com/gzdzh-cn/dzhcore/contrib/drivers/sqlite"
+	"github.com/gzdzh-cn/dzhcore/contrib/files/local"
 	_ "github.com/gzdzh-cn/dzhcore/contrib/files/local"
 	_ "github.com/gzdzh-cn/dzhcore/contrib/files/oss"
 )
@@ -41,7 +42,7 @@ var (
 	NodeSnowflake  *snowflake.Node             // 雪花
 	DbCacheManager = gcache.New()
 	DbRedisEnable  = false // 开启db 查询结果使用 redis 缓存
-	RedisConfig    *gredis.Config
+	RedisConfig    = &gredis.Config{}
 	DbExpire       int64
 )
 
@@ -50,57 +51,54 @@ func init() {
 }
 
 func NewInit() {
+	g.Log().Debug(ctx, "------------ dzhcore NewInit start")
 
 	coreconfig.LoadEnv()
 	getConfig()
-	IsRedisMode = env.GetCfgWithDefault(ctx, "redis.enable", g.NewVar(false)).Bool()
-	DbRedisEnable = env.GetCfgWithDefault(ctx, "redis.dbRedis.enable", g.NewVar(false)).Bool()
-	DbExpire = env.GetCfgWithDefault(ctx, "redis.dbRedis.expire", g.NewVar(60000)).Int64() * int64(time.Millisecond)
-
+	local.NewInit()
 	setDataBase()
 	setLogger()
 	SetVersions("dzhcore", coreconfig.Version)
+
 	NodeSnowflake = CreateSnowflake(ctx) //雪花节点创建
 
 	if IsRedisMode {
 
 		redisVar, err := g.Cfg().Get(ctx, "redis.core")
 		if err != nil {
-			g.Log().Error(ctx, "初始化缓存失败,请检查配置文件")
+			g.Log().Errorf(ctx, "初始化缓存失败,请检查配置文件:%v", err)
 			panic(err)
 		}
+
 		if !redisVar.IsEmpty() {
+
 			err = redisVar.Struct(RedisConfig)
 			if err != nil {
-				g.Log().Error(ctx, "初始化缓存失败,请检查配置文件")
+				g.Log().Errorf(ctx, "初始化缓存失败,请检查配置文件:%v", err)
 				return
 			}
 			redis, err := gredis.New(RedisConfig)
 			if err != nil {
-				g.Log().Error(ctx, "初始化缓存失败,请检查配置文件")
+				g.Log().Errorf(ctx, "初始化缓存失败,请检查配置文件:%v", err)
 				panic(err)
 			}
+			g.Log().Debug(ctx, "redis开启成功")
 			CacheManager.SetAdapter(gcache.NewAdapterRedis(redis))
 		}
 
 		//db 查询使用指定缓存分组
 		if DbRedisEnable {
-			dbRedisVar, err := g.Cfg().Get(ctx, "redis.core")
+
+			dbNum := env.GetCfgWithDefault(ctx, "redis.dbRedis.db", g.NewVar(9)).Int()
+			RedisConfig.Db = dbNum
+			redis, err := gredis.New(RedisConfig)
 			if err != nil {
-				g.Log().Error(ctx, "初始化缓存失败,请检查配置文件")
+				g.Log().Errorf(ctx, "初始化缓存失败,请检查配置文件:%v", err)
 				panic(err)
 			}
-			if !dbRedisVar.IsEmpty() {
-				dbNum := env.GetCfgWithDefault(ctx, "redis.dbRedis.db", g.NewVar(9)).Int()
-				RedisConfig.Db = dbNum
-				redis, err := gredis.New(RedisConfig)
-				if err != nil {
-					g.Log().Error(ctx, "初始化缓存失败,请检查配置文件")
-					panic(err)
-				}
-				redisCache := gcache.NewAdapterRedis(redis)
-				DbCacheManager.SetAdapter(redisCache)
-			}
+			redisCache := gcache.NewAdapterRedis(redis)
+			DbCacheManager.SetAdapter(redisCache)
+
 		}
 	}
 
@@ -110,19 +108,18 @@ func NewInit() {
 	RegisterControllers()
 	RegisterControllerSimples()
 
-	g.Log().Debug(ctx, "------------ dzhcore NewInit start")
-	g.Log().Debugf(ctx, "IsProd:%v, AppName:%v, IsDesktop:%v", envconfig.IsProd, envconfig.AppName, envconfig.IsDesktop)
-
 	if envconfig.IsProd {
 		g.Log().Info(ctx, "生产环境")
 	} else {
 		g.Log().Info(ctx, "开发环境")
 	}
+	g.Log().Debugf(ctx, "IsProd:%v, AppName:%v, IsDesktop:%v", envconfig.IsProd, envconfig.AppName, envconfig.IsDesktop)
 	g.Log().Debugf(ctx, "dzhcore version:%v", coreconfig.Version)
 	g.Log().Debugf(ctx, "当前运行模式:%v", RunMode)
 	g.Log().Debugf(ctx, "当前实例ID:%v", ProcessFlag)
 	g.Log().Debugf(ctx, "是否redis缓存模式:%v", IsRedisMode)
 	g.Log().Debugf(ctx, "是否DbRedisEnable缓存模式:%v", DbRedisEnable)
+
 	g.Log().Debug(ctx, "------------ dzhcore NewInit end")
 
 }
@@ -148,6 +145,10 @@ func getConfig() {
 	if RunMode == "core-tools" {
 		return
 	}
+	IsRedisMode = coreconfig.Config.Redis.Enable
+	DbRedisEnable = coreconfig.Config.Redis.DBRedis.Enable
+	DbExpire = coreconfig.Config.Redis.DBRedis.Expire * int64(time.Millisecond)
+
 	g.Log().Debugf(ctx, "config.IsProd:%v, config.IsDesktop:%v, config.AppName:%v", envconfig.IsProd, envconfig.IsDesktop, envconfig.AppName)
 }
 
