@@ -58,7 +58,7 @@ func NewInit() {
 	local.NewInit()
 	setDataBase()
 	setLogger()
-	SetVersions("dzhcore", coreconfig.Version)
+	SetVersions("dzhcore", Version)
 
 	NodeSnowflake = CreateSnowflake(ctx) //雪花节点创建
 
@@ -114,7 +114,7 @@ func NewInit() {
 		g.Log().Info(ctx, "开发环境")
 	}
 	g.Log().Debugf(ctx, "IsProd:%v, AppName:%v, IsDesktop:%v", envconfig.IsProd, envconfig.AppName, envconfig.IsDesktop)
-	g.Log().Debugf(ctx, "dzhcore version:%v", coreconfig.Version)
+	g.Log().Debugf(ctx, "dzhcore version:%v", Version)
 	g.Log().Debugf(ctx, "当前运行模式:%v", RunMode)
 	g.Log().Debugf(ctx, "当前实例ID:%v", ProcessFlag)
 	g.Log().Debugf(ctx, "是否redis缓存模式:%v", IsRedisMode)

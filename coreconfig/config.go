@@ -9,9 +9,8 @@ import (
 )
 
 var (
-	ctx     = gctx.GetInitCtx()
-	Config  *defineStruct.Config
-	Version = "v1.3.0"
+	ctx    = gctx.GetInitCtx()
+	Config *defineStruct.Config
 )
 
 func init() {
