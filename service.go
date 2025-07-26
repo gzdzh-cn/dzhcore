@@ -14,15 +14,15 @@ import (
 )
 
 type IService interface {
-	ServiceAdd(ctx context.Context, req *AddReq) (data interface{}, err error)       // 新增
-	ServiceDelete(ctx context.Context, req *DeleteReq) (data interface{}, err error) // 删除
-	ServiceUpdate(ctx context.Context, req *UpdateReq) (data interface{}, err error) // 修改
-	ServiceInfo(ctx context.Context, req *InfoReq) (data interface{}, err error)     // 详情
-	ServiceList(ctx context.Context, req *ListReq) (data interface{}, err error)     // 列表
-	ServicePage(ctx context.Context, req *PageReq) (data interface{}, err error)     // 分页
-	ModifyBefore(ctx context.Context, method string, param g.MapStrAny) (err error)  // 新增|删除|修改前的操作
-	ModifyAfter(ctx context.Context, method string, param g.MapStrAny) (err error)   // 新增|删除|修改后的操作
-	CacheDo(ctx context.Context, method string, param g.MapStrAny) (err error)       // 处理 db 缓存
+	ServiceAdd(ctx context.Context, req *AddReq) (data any, err error)              // 新增
+	ServiceDelete(ctx context.Context, req *DeleteReq) (data any, err error)        // 删除
+	ServiceUpdate(ctx context.Context, req *UpdateReq) (data any, err error)        // 修改
+	ServiceInfo(ctx context.Context, req *InfoReq) (data any, err error)            // 详情
+	ServiceList(ctx context.Context, req *ListReq) (data any, err error)            // 列表
+	ServicePage(ctx context.Context, req *PageReq) (data any, err error)            // 分页
+	ModifyBefore(ctx context.Context, method string, param g.MapStrAny) (err error) // 新增|删除|修改前的操作
+	ModifyAfter(ctx context.Context, method string, param g.MapStrAny) (err error)  // 新增|删除|修改后的操作
+	CacheDo(ctx context.Context, method string, param g.MapStrAny) (err error)      // 处理 db 缓存
 	GetModel() IModel
 	GetDao() IDao
 }
@@ -41,16 +41,16 @@ type Service struct {
 
 // List/Add接口条件配置
 type QueryOp struct {
-	FieldEQ      []string                                      // 字段等于
-	KeyWordField []string                                      // 模糊搜索匹配的数据库字段
-	AddOrderby   g.MapStrStr                                   // 添加排序
-	Where        func(ctx context.Context) []g.Array           // 自定义条件
-	OrWhere      func(ctx context.Context) []g.Array           // 自定义条件
-	Select       string                                        // 查询字段,多个字段用逗号隔开 如: id,name  或  a.id,a.name,b.name AS bname
-	As           string                                        //主表别名
-	Join         []*JoinOp                                     // 关联查询
-	Extend       func(ctx g.Ctx, m *gdb.Model) *gdb.Model      // 追加其他条件
-	ModifyResult func(ctx g.Ctx, data interface{}) interface{} // 修改结果
+	FieldEQ      []string                                 // 字段等于
+	KeyWordField []string                                 // 模糊搜索匹配的数据库字段
+	AddOrderby   g.MapStrStr                              // 添加排序
+	Where        func(ctx context.Context) []g.Array      // 自定义条件
+	OrWhere      func(ctx context.Context) []g.Array      // 自定义条件
+	Select       string                                   // 查询字段,多个字段用逗号隔开 如: id,name  或  a.id,a.name,b.name AS bname
+	As           string                                   //主表别名
+	Join         []*JoinOp                                // 关联查询
+	Extend       func(ctx g.Ctx, m *gdb.Model) *gdb.Model // 追加其他条件
+	ModifyResult func(ctx g.Ctx, data any) any            // 修改结果
 }
 
 // 关联查询
@@ -66,11 +66,11 @@ type JoinOp struct {
 type JoinType string
 
 // 新增
-func (s *Service) ServiceAdd(ctx context.Context, req *AddReq) (data interface{}, err error) {
+func (s *Service) ServiceAdd(ctx context.Context, req *AddReq) (data any, err error) {
 
 	r := g.RequestFromCtx(ctx)
 	rmap := r.GetMap()
-
+	m := DDAO(s.Dao, ctx)
 	// 非空键
 	if s.NotNullKey != nil {
 		for k, v := range s.NotNullKey {
@@ -83,7 +83,7 @@ func (s *Service) ServiceAdd(ctx context.Context, req *AddReq) (data interface{}
 	if s.UniqueKey != nil {
 		for k, v := range s.UniqueKey {
 			if rmap[k] != nil {
-				m := DBM(s.Model)
+
 				count, err := m.Where(k, rmap[k]).Count()
 				if err != nil {
 					return nil, err
@@ -103,8 +103,7 @@ func (s *Service) ServiceAdd(ctx context.Context, req *AddReq) (data interface{}
 			}
 		}
 	}
-	//m := DBM(s.Model)
-	m := DDAO(s.Dao, ctx)
+
 	rmap["id"] = NodeSnowflake.Generate().String()
 	_, err = m.Insert(rmap)
 	if err != nil {
@@ -117,9 +116,8 @@ func (s *Service) ServiceAdd(ctx context.Context, req *AddReq) (data interface{}
 }
 
 // 删除
-func (s *Service) ServiceDelete(ctx context.Context, req *DeleteReq) (data interface{}, err error) {
+func (s *Service) ServiceDelete(ctx context.Context, req *DeleteReq) (data any, err error) {
 	ids := g.RequestFromCtx(ctx).Get("ids").Slice()
-	//m := DBM(s.Model)
 	m := DDAO(s.Dao, ctx)
 	data, err = m.WhereIn("id", ids).Delete()
 
@@ -127,9 +125,10 @@ func (s *Service) ServiceDelete(ctx context.Context, req *DeleteReq) (data inter
 }
 
 // 修改
-func (s *Service) ServiceUpdate(ctx context.Context, req *UpdateReq) (data interface{}, err error) {
+func (s *Service) ServiceUpdate(ctx context.Context, req *UpdateReq) (data any, err error) {
 	r := g.RequestFromCtx(ctx)
 	rmap := r.GetMap()
+	m := DDAO(s.Dao, ctx)
 	if rmap["id"] == nil {
 		err = gerror.New("id不能为空")
 		g.Log().Error(ctx, err.Error())
@@ -138,7 +137,7 @@ func (s *Service) ServiceUpdate(ctx context.Context, req *UpdateReq) (data inter
 	if s.UniqueKey != nil {
 		for k, v := range s.UniqueKey {
 			if rmap[k] != nil {
-				count, err := DBM(s.Model).Where(k, rmap[k]).WhereNot("id", rmap["id"]).Count()
+				count, err := m.Where(k, rmap[k]).WhereNot("id", rmap["id"]).Count()
 				if err != nil {
 					return nil, err
 				}
@@ -150,21 +149,20 @@ func (s *Service) ServiceUpdate(ctx context.Context, req *UpdateReq) (data inter
 			}
 		}
 	}
-	//m := DBM(s.Model)
-	m := DDAO(s.Dao, ctx)
+
 	_, err = m.Data(rmap).Where("id", gconv.String(rmap["id"])).Update()
 	return
 }
 
 // 查询
-func (s *Service) ServiceInfo(ctx context.Context, req *InfoReq) (data interface{}, err error) {
+func (s *Service) ServiceInfo(ctx context.Context, req *InfoReq) (data any, err error) {
 	if s.Before != nil {
 		err = s.Before(ctx)
 		if err != nil {
 			return
 		}
 	}
-	//m := DBM(s.Model)
+
 	m := DDAO(s.Dao, ctx)
 	// 如果InfoIgnoreProperty不为空 则忽略相关字段
 	if len(s.InfoIgnoreProperty) > 0 {
@@ -175,7 +173,7 @@ func (s *Service) ServiceInfo(ctx context.Context, req *InfoReq) (data interface
 }
 
 // 列表
-func (s *Service) ServiceList(ctx context.Context, req *ListReq) (data interface{}, err error) {
+func (s *Service) ServiceList(ctx context.Context, req *ListReq) (data any, err error) {
 	if s.Before != nil {
 		err = s.Before(ctx)
 		if err != nil {
@@ -183,7 +181,7 @@ func (s *Service) ServiceList(ctx context.Context, req *ListReq) (data interface
 		}
 	}
 	r := g.RequestFromCtx(ctx)
-	//m := DBM(s.Model)
+
 	m := DDAO(s.Dao, ctx)
 
 	// 如果 req.Order 和 req.Sort 均不为空 则添加排序
@@ -282,7 +280,7 @@ func (s *Service) ServiceList(ctx context.Context, req *ListReq) (data interface
 }
 
 // 分页列表
-func (s *Service) ServicePage(ctx context.Context, req *PageReq) (data interface{}, err error) {
+func (s *Service) ServicePage(ctx context.Context, req *PageReq) (data any, err error) {
 
 	var (
 		r            = g.RequestFromCtx(ctx)
@@ -302,7 +300,7 @@ func (s *Service) ServicePage(ctx context.Context, req *PageReq) (data interface
 		req.Page = 1
 	}
 	dbRedisSlice = append(dbRedisSlice, []any{r.Router.Uri, req.Page, req.Size}...)
-	//m := DBM(s.Model)
+
 	m := DDAO(s.Dao, ctx)
 	// 如果pageQueryOp不为空 则使用pageQueryOp进行查询
 	if s.PageQueryOp != nil {
@@ -408,13 +406,7 @@ func (s *Service) ServicePage(ctx context.Context, req *PageReq) (data interface
 			}
 			dbRedisSlice = append(dbRedisSlice, addOrderby)
 		}
-	}
-	// dbRedisKey := gstr.JoinAny(dbRedisSlice, "/")
-	//cachValue := g.DB().GetCache().MustGet(ctx, dbRedisKey)
-	//g.Log().Infof(ctx, "cachValue:%v", cachValue)
-	//g.DB().GetCore().ClearCacheAll(ctx)
 
-	if s.PageQueryOp != nil {
 		if Select := s.PageQueryOp.Select; Select != "" {
 			m = m.Fields(Select)
 		}
@@ -423,6 +415,20 @@ func (s *Service) ServicePage(ctx context.Context, req *PageReq) (data interface
 			m = s.PageQueryOp.Extend(ctx, m)
 		}
 	}
+	// dbRedisKey := gstr.JoinAny(dbRedisSlice, "/")
+	//cachValue := g.DB().GetCache().MustGet(ctx, dbRedisKey)
+	//g.Log().Infof(ctx, "cachValue:%v", cachValue)
+	//g.DB().GetCore().ClearCacheAll(ctx)
+
+	// if s.PageQueryOp != nil {
+	// 	if Select := s.PageQueryOp.Select; Select != "" {
+	// 		m = m.Fields(Select)
+	// 	}
+	// 	// 如果PageQueryOp的Extend不为空 则执行Extend
+	// 	if s.PageQueryOp.Extend != nil {
+	// 		m = s.PageQueryOp.Extend(ctx, m)
+	// 	}
+	// }
 
 	// 如果 req.Order 和 req.Sort 均不为空 则添加排序
 	if !r.Get("order").IsEmpty() && !r.Get("sort").IsEmpty() {

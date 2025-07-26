@@ -26,12 +26,27 @@ var (
 			{
 				Name:  "name",
 				Short: "n",
-				Brief: "模块名称，例如: user",
+				Brief: "模块名称，例如: user (必须与 addons 配合使用)",
 			},
 			{
 				Name:  "module",
 				Short: "m",
-				Brief: "所属模块，例如: admin 或 app，(可不填) 默认: admin和 app 同时生成",
+				Brief: "所属模块，例如: admin 或 app，(可不填，必须与 addons 配合使用) 默认: admin和 app 同时生成",
+			},
+			{
+				Name:  "model",
+				Short: "M",
+				Brief: "单独生成模型，例如: user (可与 addons 配合使用)",
+			},
+			{
+				Name:  "controller",
+				Short: "C",
+				Brief: "单独生成控制器，例如: user (可与 addons 配合使用)",
+			},
+			{
+				Name:  "logic",
+				Short: "L",
+				Brief: "单独生成逻辑，例如: user (可与 addons 配合使用)",
 			},
 		},
 	}
@@ -43,37 +58,174 @@ func genCodeFunc(ctx context.Context, parser *gcmd.Parser) (err error) {
 	addons := parser.GetOpt("addons").String()
 	name := parser.GetOpt("name").String()
 	module := parser.GetOpt("module").String()
+	model := parser.GetOpt("model").String()
+	controller := parser.GetOpt("controller").String()
+	logic := parser.GetOpt("logic").String()
 
-	if addons == "" {
-		return fmt.Errorf("请提供插件名称，使用 -a 或 --addons 参数")
+	// 1. 所有参数不能全为空
+	if addons == "" && name == "" && module == "" && model == "" && controller == "" && logic == "" {
+		return fmt.Errorf("请至少提供一个参数，使用 -a/--addons, -n/--name, -m/--module, -M/--model, -c/--controller, -l/--logic")
 	}
-	if name == "" {
-		return fmt.Errorf("请提供模块名称，使用 -n 或 --name 参数")
+
+	// 2. 有addons时，name和module可以为空，如果name为空且没有指定特定的生成参数，则用addons名称
+	if addons != "" {
+		// 如果name为空且没有指定特定的生成参数，使用addons作为name
+		if name == "" && model == "" && controller == "" && logic == "" {
+			name = addons
+		}
+		// 如果module为空，设置为空字符串，在generateAddonCode中会同时生成admin和app
+		return generateAddonCode(addons, name, module, model, controller, logic)
 	}
-	if module != "" {
-		// 验证模块类型
-		if module != "admin" && module != "app" {
-			if parser.GetOpt("addons").String() == "" {
-				return fmt.Errorf("模块类型必须是 admin 或 app，或请使用 --addons 生成插件目录")
+
+	// 3. 没有addons时，不能使用name和module
+	if name != "" || module != "" {
+		return fmt.Errorf("没有 addons 参数时，不能使用 name 和 module 参数")
+	}
+
+	// 4. 没有addons时，只能生成internal下的单独文件
+	if model == "" && controller == "" && logic == "" {
+		return fmt.Errorf("没有 addons 参数时，必须提供 model、controller 或 logic 参数")
+	}
+
+	return generateInternalSingleFile(model, controller, logic)
+}
+
+// 只在 internal 目录下生成单独文件
+func generateInternalSingleFile(modelName, controllerName, logicName string) error {
+	// 获取 go.mod 里的 module 名称
+	modName := ""
+	if modData := gfile.GetContents("go.mod"); modData != "" {
+		for _, line := range gstr.Split(modData, "\n") {
+			if gstr.HasPrefix(line, "module ") {
+				modName = gstr.Trim(gstr.TrimLeftStr(line, "module "))
+				break
 			}
 		}
 	}
-
-	// 只要有 --addons，统一先生成基础结构
-	if addons != "" {
-
-		// 生成基础结构
-		if err := generateAddonModule(addons, module); err != nil {
-			return err
-		}
-		// 如果 name 和 module 都有，再补充 user.go 等
-		if name != "" || module != "" {
-			return genAddonWithModuleOnly(addons, name, module)
-		}
-		return nil
+	if modName == "" {
+		return fmt.Errorf("无法获取go.mod中的module名称")
 	}
 
-	fmt.Println("代码生成完成!")
+	basePath := "internal"
+	importPrefix := modName + "/internal"
+
+	// 生成模型（如果指定了 model）
+	if modelName != "" {
+		if err := generateModelAtPath(modelName, basePath, importPrefix); err != nil {
+			return err
+		}
+		fmt.Printf("模型 %s 已生成到 %s/model\n", modelName, basePath)
+	}
+
+	// 生成控制器（如果指定了 controller）
+	if controllerName != "" {
+		if err := generateControllerAtPath(controllerName, "admin", basePath, importPrefix); err != nil {
+			return err
+		}
+		fmt.Printf("控制器 %s 已生成到 %s/controller/admin\n", controllerName, basePath)
+	}
+
+	// 生成逻辑（如果指定了 logic）
+	if logicName != "" {
+		if err := generateLogicSysAtPath(logicName, basePath, importPrefix, logicName); err != nil {
+			return err
+		}
+		fmt.Printf("逻辑 %s 已生成到 %s/logic/sys\n", logicName, basePath)
+	}
+
+	return nil
+}
+
+// 生成 addons 目录下的代码
+func generateAddonCode(addons, name, module, model, controller, logic string) error {
+	// 获取 go.mod 里的 module 名称
+	modName := ""
+	if modData := gfile.GetContents("go.mod"); modData != "" {
+		for _, line := range gstr.Split(modData, "\n") {
+			if gstr.HasPrefix(line, "module ") {
+				modName = gstr.Trim(gstr.TrimLeftStr(line, "module "))
+				break
+			}
+		}
+	}
+	if modName == "" {
+		return fmt.Errorf("无法获取go.mod中的module名称")
+	}
+
+	basePath := filepath.Join("addons", addons)
+	importPrefix := modName + "/addons/" + addons
+
+	// 生成基础结构
+	if err := generateAddonModule(addons, module); err != nil {
+		return err
+	}
+
+	// 生成模型
+	if model != "" {
+		if err := generateModelAtPath(model, basePath, importPrefix); err != nil {
+			return err
+		}
+		fmt.Printf("模型 %s 已生成到 %s/model\n", model, basePath)
+	} else if name != "" && model == "" && controller == "" && logic == "" {
+		// 只有在没有指定任何特定生成参数时，才使用 name 作为模型名
+		if err := generateModelAtPath(name, basePath, importPrefix); err != nil {
+			return err
+		}
+		fmt.Printf("模型 %s 已生成到 %s/model\n", name, basePath)
+	}
+
+	// 生成控制器
+	if controller != "" {
+		// 如果module为空，同时生成admin和app
+		if module == "" {
+			if err := generateControllerAtPath(controller, "admin", basePath, importPrefix); err != nil {
+				return err
+			}
+			fmt.Printf("控制器 %s 已生成到 %s/controller/admin\n", controller, basePath)
+			if err := generateControllerAtPath(controller, "app", basePath, importPrefix); err != nil {
+				return err
+			}
+			fmt.Printf("控制器 %s 已生成到 %s/controller/app\n", controller, basePath)
+		} else {
+			if err := generateControllerAtPath(controller, module, basePath, importPrefix); err != nil {
+				return err
+			}
+			fmt.Printf("控制器 %s 已生成到 %s/controller/%s\n", controller, basePath, module)
+		}
+	} else if name != "" && model == "" && controller == "" && logic == "" {
+		// 只有在没有指定任何特定生成参数时，才使用 name 作为控制器名
+		// 如果module为空，同时生成admin和app
+		if module == "" {
+			if err := generateControllerAtPath(name, "admin", basePath, importPrefix); err != nil {
+				return err
+			}
+			fmt.Printf("控制器 %s 已生成到 %s/controller/admin\n", name, basePath)
+			if err := generateControllerAtPath(name, "app", basePath, importPrefix); err != nil {
+				return err
+			}
+			fmt.Printf("控制器 %s 已生成到 %s/controller/app\n", name, basePath)
+		} else {
+			if err := generateControllerAtPath(name, module, basePath, importPrefix); err != nil {
+				return err
+			}
+			fmt.Printf("控制器 %s 已生成到 %s/controller/%s\n", name, basePath, module)
+		}
+	}
+
+	// 生成逻辑
+	if logic != "" {
+		if err := generateLogicSysAtPath(logic, basePath, importPrefix, addons); err != nil {
+			return err
+		}
+		fmt.Printf("逻辑 %s 已生成到 %s/logic/sys\n", logic, basePath)
+	} else if name != "" && model == "" && controller == "" && logic == "" {
+		// 只有在没有指定任何特定生成参数时，才使用 name 作为逻辑名
+		if err := generateLogicSysAtPath(name, basePath, importPrefix, addons); err != nil {
+			return err
+		}
+		fmt.Printf("逻辑 %s 已生成到 %s/logic/sys\n", name, basePath)
+	}
+
 	return nil
 }
 
@@ -197,50 +349,6 @@ func generateAddonModule(name, module string) error {
 	}
 
 	fmt.Printf("插件模块 %s 目录结构已生成于 %s\n", name, basePath)
-	return nil
-}
-
-// 支持 --addons --name --module 生成到 addons 下的插件模块
-func genAddonWithModuleOnly(addons, name, module string) error {
-	basePath := filepath.Join("addons", addons)
-
-	// 获取 go.mod 里的 module 名称，供 importPrefix 用
-	modName := ""
-	if modData := gfile.GetContents("go.mod"); modData != "" {
-		for _, line := range gstr.Split(modData, "\n") {
-			if gstr.HasPrefix(line, "module ") {
-				modName = gstr.Trim(gstr.TrimLeftStr(line, "module "))
-				break
-			}
-		}
-	}
-	if modName == "" {
-		return fmt.Errorf("无法获取go.mod中的module名称")
-	}
-	importPrefix := modName + "/addons/" + addons
-
-	// 根据 module 参数生成 controller 下的 {name}.go，使用统一模板
-	var controllerSubs []string
-	if module == "admin" {
-		controllerSubs = []string{"admin"}
-	} else if module == "app" {
-		controllerSubs = []string{"app"}
-	} else {
-		controllerSubs = []string{"admin", "app"}
-	}
-	for _, sub := range controllerSubs {
-		if err := generateControllerAtPath(name, sub, basePath, importPrefix); err != nil {
-			return err
-		}
-	}
-	// 生成 model/user.go
-	if err := generateModelAtPath(name, basePath, importPrefix); err != nil {
-		return err
-	}
-	// 生成 logic/sys/{name}.go，用 dict.go 的模板
-	if err := generateLogicSysAtPath(name, basePath, importPrefix, addons); err != nil {
-		return err
-	}
 	return nil
 }
 
