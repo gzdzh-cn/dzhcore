@@ -343,9 +343,17 @@ func generateAddonModule(name, module string) error {
 		return fmt.Errorf("写入 %s 失败: %v", mainPath, err)
 	}
 
-	// 生成 logic/sys/{name}.go，用 dict.go 的模板
-	if err := generateLogicSysAtPath(name, basePath, fmt.Sprintf("addons/%s", name), name); err != nil {
-		return err
+	// 生成 logic/sys/{name}.go，使用简单模板
+	logicSysDir := filepath.Join(basePath, "logic", "sys")
+	if !gfile.Exists(logicSysDir) {
+		if err := gfile.Mkdir(logicSysDir); err != nil {
+			return fmt.Errorf("创建目录失败: %s, 错误: %v", logicSysDir, err)
+		}
+	}
+	logicPath := filepath.Join(logicSysDir, name+".go")
+	logicContent := fmt.Sprintf("package sys\n\n// %s 插件的 logic/sys/%s.go 代码\n", name, name)
+	if err := gfile.PutContents(logicPath, logicContent); err != nil {
+		return fmt.Errorf("写入 %s 失败: %v", logicPath, err)
 	}
 
 	fmt.Printf("插件模块 %s 目录结构已生成于 %s\n", name, basePath)

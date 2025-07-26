@@ -1,7 +1,11 @@
 package cmd
 
 import (
+	"context"
+	"fmt"
+
 	"github.com/gogf/gf/v2/os/gcmd"
+	"github.com/gzdzh-cn/dzhcore/dzhgo/version"
 )
 
 // Root 根命令
@@ -10,7 +14,10 @@ var (
 		Name:  "dzhgo",
 		Usage: "dzhgo [COMMAND] [OPTION]",
 		Brief: "DzhGO 代码生成工具",
-		Description: `
+		Description: fmt.Sprintf(`
+ 
+版本信息：%s
+
 DzhGO 代码生成工具，用于快速生成控制器、模型和服务代码。
 
 ## 命令说明
@@ -60,13 +67,25 @@ DzhGO 代码生成工具，用于快速生成控制器、模型和服务代码�
 - 有 addons 参数时，可以只指定 addons 和 controller/model/logic，分别生成对应的文件
 - 没有 addons 参数时，只能使用 model、controller 或 logic 参数生成 internal 下的文件
 - model、controller、logic 可以单独使用，只生成对应的逻辑模板
-`,
-		Additional: `
+
+`, version.Version),
+		Additional: fmt.Sprintf(`
 安装和更新：
 go install github.com/gzdzh-cn/dzhcore/dzhgo@latest
 
 运行 'dzhgo COMMAND -h' 获取更多命令帮助信息。
-`,
+`),
+	}
+
+	// VersionCmd 版本命令
+	VersionCmd = &gcmd.Command{
+		Name:  "version",
+		Usage: "version",
+		Brief: "显示版本信息",
+		Func: func(ctx context.Context, parser *gcmd.Parser) (err error) {
+			fmt.Println(version.Version)
+			return nil
+		},
 	}
 )
 
@@ -74,4 +93,5 @@ func init() {
 	// 添加所有命令到根命令
 	Root.AddCommand(GenCode)
 	Root.AddCommand(InitProject)
+	Root.AddCommand(VersionCmd)
 }

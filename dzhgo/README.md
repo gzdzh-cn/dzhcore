@@ -21,6 +21,7 @@ go install github.com/gzdzh-cn/dzhcore/dzhgo@latest
 go install github.com/gzdzh-cn/dzhcore/dzhgo@latest
 ```
 
+
 ## 快速开始
 
 ### 1. 初始化项目
@@ -123,6 +124,14 @@ dzhgo init myproject
 ### gen 命令 - 生成代码文件
 
 `gen` 命令用于一键生成 Go 项目的插件模块目录结构及基础代码，包括控制器、模型、逻辑、服务等，极大提升开发效率，适合中大型项目的模块化、插件化开发。
+
+### version 命令 - 显示版本信息
+
+`version` 命令用于显示当前工具的版本信息。
+
+```bash
+dzhgo version
+```
 
 ### 命令格式
 
