@@ -284,11 +284,11 @@ func generateAddonModule(name, module string) error {
 	}
 	for _, dir := range subDirs {
 		fullPath := filepath.Join(basePath, dir)
-		if !gfile.Exists(fullPath) {
-			if err := gfile.Mkdir(fullPath); err != nil {
-				return fmt.Errorf("创建目录失败: %s, 错误: %v", fullPath, err)
-			}
+
+		if err := gfile.Mkdir(fullPath); err != nil {
+			return fmt.Errorf("创建目录失败: %s, 错误: %v", fullPath, err)
 		}
+
 	}
 
 	// 合并 controller 下 admin、app 子目录及 go 文件的生成
@@ -304,27 +304,37 @@ func generateAddonModule(name, module string) error {
 		parentBase := filepath.Join(basePath, parent)
 		for _, sub := range subs {
 			subDir := filepath.Join(parentBase, sub)
-			if !gfile.Exists(subDir) {
-				if err := gfile.Mkdir(subDir); err != nil {
-					return fmt.Errorf("创建目录失败: %s, 错误: %v", subDir, err)
-				}
+
+			if err := gfile.Mkdir(subDir); err != nil {
+				return fmt.Errorf("创建目录失败: %s, 错误: %v", subDir, err)
 			}
+
 			filePath := filepath.Join(subDir, sub+".go")
+			if gfile.Exists(filePath) {
+				fmt.Printf("模型文件已存在: %s\n", filePath)
+				continue
+			}
+
 			content := fmt.Sprintf("package %s\n\n// %s 插件的 %s/%s 代码\n", sub, name, parent, sub)
 			if err := gfile.PutContents(filePath, content); err != nil {
 				return fmt.Errorf("写入 %s 失败: %v", filePath, err)
 			}
+
 		}
 	}
 
 	// 合并 api 下 v1 子目录及 go 文件的生成
 	apiV1Dir := filepath.Join(basePath, "api", "v1")
-	if !gfile.Exists(apiV1Dir) {
-		if err := gfile.Mkdir(apiV1Dir); err != nil {
-			return fmt.Errorf("创建目录失败: %s, 错误: %v", apiV1Dir, err)
-		}
+	if err := gfile.Mkdir(apiV1Dir); err != nil {
+		return fmt.Errorf("创建目录失败: %s, 错误: %v", apiV1Dir, err)
 	}
+
 	filePath := filepath.Join(apiV1Dir, name+".go")
+	if gfile.Exists(filePath) {
+		fmt.Printf("api/v1/%s.go 文件已存在: %s\n", name, filePath)
+		return nil
+	}
+
 	content := fmt.Sprintf("package v1\n\n// %s 插件的 api/v1/%s.go 代码\n", name, name)
 	if err := gfile.PutContents(filePath, content); err != nil {
 		return fmt.Errorf("写入 %s 失败: %v", filePath, err)
@@ -332,12 +342,22 @@ func generateAddonModule(name, module string) error {
 
 	// 生成插件根目录下的 config.go
 	configPath := filepath.Join(basePath, "config.go")
+	if gfile.Exists(configPath) {
+		fmt.Printf("配置文件已存在: %s\n", configPath)
+		return nil
+	}
+
 	configContent := fmt.Sprintf("package %s\n\n// %s 插件的配置\n", name, name)
 	if err := gfile.PutContents(configPath, configContent); err != nil {
 		return fmt.Errorf("写入 %s 失败: %v", configPath, err)
 	}
+
 	// 生成插件根目录下的 插件名.go
 	mainPath := filepath.Join(basePath, name+".go")
+	if gfile.Exists(mainPath) {
+		return fmt.Errorf("插件主入口文件已存在: %s", mainPath)
+	}
+
 	mainContent := fmt.Sprintf("package %s\n\n// %s 插件主入口\n", name, name)
 	if err := gfile.PutContents(mainPath, mainContent); err != nil {
 		return fmt.Errorf("写入 %s 失败: %v", mainPath, err)
@@ -345,12 +365,21 @@ func generateAddonModule(name, module string) error {
 
 	// 生成 logic/sys/{name}.go，使用简单模板
 	logicSysDir := filepath.Join(basePath, "logic", "sys")
-	if !gfile.Exists(logicSysDir) {
-		if err := gfile.Mkdir(logicSysDir); err != nil {
-			return fmt.Errorf("创建目录失败: %s, 错误: %v", logicSysDir, err)
-		}
+	if gfile.Exists(logicSysDir) {
+		fmt.Printf("逻辑文件已存在: %s\n", logicSysDir)
+		return nil
 	}
+
+	if err := gfile.Mkdir(logicSysDir); err != nil {
+		return fmt.Errorf("创建目录失败: %s, 错误: %v", logicSysDir, err)
+	}
+
 	logicPath := filepath.Join(logicSysDir, name+".go")
+	if gfile.Exists(logicPath) {
+		fmt.Printf("逻辑文件已存在: %s\n", logicPath)
+		return nil
+	}
+
 	logicContent := fmt.Sprintf("package sys\n\n// %s 插件的 logic/sys/%s.go 代码\n", name, name)
 	if err := gfile.PutContents(logicPath, logicContent); err != nil {
 		return fmt.Errorf("写入 %s 失败: %v", logicPath, err)
@@ -383,6 +412,7 @@ func generateControllerAtPath(name, module, basePath, importPrefix string) error
 	if gfile.Exists(controllerPath) {
 		return fmt.Errorf("控制器文件已存在: %s", controllerPath)
 	}
+
 	const controllerTemplate = `package %s
 
 import (
@@ -410,6 +440,7 @@ func init() {
 	dzhcore.AddController(%sController)
 }
 `
+
 	content := fmt.Sprintf(
 		controllerTemplate,
 		module,
@@ -424,6 +455,7 @@ func init() {
 		return fmt.Errorf("写入控制器文件失败: %v", err)
 	}
 	fmt.Printf("生成控制器: %s\n", controllerPath)
+
 	return nil
 }
 
@@ -456,209 +488,6 @@ func generateModelAtPath(name, basePath, importPrefix string) error {
 		return fmt.Errorf("写入模型文件失败: %v", err)
 	}
 	fmt.Printf("生成模型: %s\n", modelPath)
-	return nil
-}
-
-// 生成服务代码
-func generateService(name, module, basePath string) error {
-	// 首字母大写的模块名
-	upperName := gstr.UcFirst(name)
-
-	// 服务接口路径
-	serviceDir := filepath.Join(basePath, "internal", "service")
-	servicePath := filepath.Join(serviceDir, name+".go")
-
-	// 检查目录是否存在
-	if !gfile.Exists(serviceDir) {
-		if err := gfile.Mkdir(serviceDir); err != nil {
-			return fmt.Errorf("创建目录失败: %s, 错误: %v", serviceDir, err)
-		}
-	}
-
-	// 检查文件是否已存在
-	if gfile.Exists(servicePath) {
-		return fmt.Errorf("服务接口文件已存在: %s", servicePath)
-	}
-
-	// 逻辑实现路径
-	logicDir := filepath.Join(basePath, "internal", "logic", module)
-	logicPath := filepath.Join(logicDir, name+".go")
-
-	// 检查目录是否存在
-	if !gfile.Exists(logicDir) {
-		if err := gfile.Mkdir(logicDir); err != nil {
-			return fmt.Errorf("创建目录失败: %s, 错误: %v", logicDir, err)
-		}
-	}
-
-	// 检查文件是否已存在
-	if gfile.Exists(logicPath) {
-		return fmt.Errorf("服务逻辑文件已存在: %s", logicPath)
-	}
-
-	// 服务接口模板
-	serviceTemplate := `package service
-
-import (
-	"context"
-	
-	"internal/model"
-	"internal/service/internal/%s"
-)
-
-// %sService 接口
-type %sService interface {
-	GetById(ctx context.Context, id uint) (*model.%s, error)
-	GetList(ctx context.Context, page, size int) ([]*model.%s, int, error)
-	Add(ctx context.Context, data *model.%s) error
-	Update(ctx context.Context, data *model.%s) error
-	Delete(ctx context.Context, id uint) error
-}
-
-// %s 获取服务实例
-func %s() %sService {
-	return %s.New()
-}
-`
-
-	// 服务内部实现目录
-	internalServiceDir := filepath.Join(basePath, "internal", "service", "internal", name)
-	if !gfile.Exists(internalServiceDir) {
-		if err := gfile.Mkdir(internalServiceDir); err != nil {
-			return fmt.Errorf("创建目录失败: %s, 错误: %v", internalServiceDir, err)
-		}
-	}
-
-	// 服务内部实现文件
-	internalServicePath := filepath.Join(internalServiceDir, name+".go")
-
-	// 检查文件是否已存在
-	if gfile.Exists(internalServicePath) {
-		return fmt.Errorf("服务内部实现文件已存在: %s", internalServicePath)
-	}
-
-	// 服务内部实现模板
-	internalServiceTemplate := `package %s
-
-import (
-	"context"
-	
-	"internal/dao"
-	"internal/model"
-	"internal/service"
-	
-	"github.com/gogf/gf/v2/frame/g"
-)
-
-type s%sService struct{}
-
-func New() service.%sService {
-	return &s%sService{}
-}
-
-// GetById 根据ID获取
-func (s *s%sService) GetById(ctx context.Context, id uint) (*model.%s, error) {
-	var result *model.%s
-	err := dao.Db().Model(result).Where("id = ?", id).Scan(&result)
-	return result, err
-}
-
-// GetList 获取列表
-func (s *s%sService) GetList(ctx context.Context, page, size int) ([]*model.%s, int, error) {
-	var list []*model.%s
-	m := dao.Db().Model(&model.%s{})
-	
-	// 获取总数
-	var total int
-	err := m.Count(&total).Error
-	if err != nil {
-		return nil, 0, err
-	}
-	
-	// 获取列表
-	err = m.Limit(size).Offset((page - 1) * size).Find(&list).Error
-	if err != nil {
-		return nil, 0, err
-	}
-	
-	return list, total, nil
-}
-
-// Add 添加
-func (s *s%sService) Add(ctx context.Context, data *model.%s) error {
-	return dao.Db().Create(data).Error
-}
-
-// Update 更新
-func (s *s%sService) Update(ctx context.Context, data *model.%s) error {
-	return dao.Db().Save(data).Error
-}
-
-// Delete 删除
-func (s *s%sService) Delete(ctx context.Context, id uint) error {
-	return dao.Db().Delete(&model.%s{}, id).Error
-}
-`
-
-	// 逻辑实现模板
-	logicTemplate := `package %s
-
-import (
-	"context"
-	
-	"internal/model"
-	"internal/service"
-	
-	"github.com/gogf/gf/v2/frame/g"
-)
-
-// %s模块逻辑处理
-
-func init() {
-	// 在这里可以添加初始化逻辑
-	g.Log().Debug(context.Background(), "%s模块初始化")
-}
-`
-
-	// 格式化服务模板
-	serviceContent := fmt.Sprintf(serviceTemplate,
-		name,
-		upperName, upperName,
-		upperName, upperName, upperName, upperName,
-		upperName, upperName, upperName, name,
-	)
-
-	// 格式化服务内部实现模板
-	internalServiceContent := fmt.Sprintf(internalServiceTemplate,
-		name,
-		upperName, upperName, upperName, upperName, upperName, upperName,
-		upperName, upperName, upperName, upperName,
-		upperName, upperName,
-		upperName, upperName,
-		upperName, upperName,
-	)
-
-	// 格式化逻辑实现模板
-	logicContent := fmt.Sprintf(logicTemplate, module, upperName, upperName)
-
-	// 写入服务接口文件
-	if err := gfile.PutContents(servicePath, serviceContent); err != nil {
-		return fmt.Errorf("写入服务接口文件失败: %v", err)
-	}
-
-	// 写入服务内部实现文件
-	if err := gfile.PutContents(internalServicePath, internalServiceContent); err != nil {
-		return fmt.Errorf("写入服务内部实现文件失败: %v", err)
-	}
-
-	// 写入逻辑实现文件
-	if err := gfile.PutContents(logicPath, logicContent); err != nil {
-		return fmt.Errorf("写入逻辑实现文件失败: %v", err)
-	}
-
-	fmt.Printf("生成服务接口: %s\n", servicePath)
-	fmt.Printf("生成服务实现: %s\n", internalServicePath)
-	fmt.Printf("生成逻辑实现: %s\n", logicPath)
 	return nil
 }
 
@@ -749,6 +578,10 @@ func New%sService() *s%sService {
 		return fmt.Errorf("创建 %s 目录失败: %v", logicSysDir, err)
 	}
 	logicFile := filepath.Join(logicSysDir, name+".go")
+	if gfile.Exists(logicFile) {
+		return fmt.Errorf("逻辑文件已存在: %s", logicFile)
+	}
+
 	content := fmt.Sprintf(
 		logicSysTemplate,
 		importPrefix,
@@ -763,5 +596,6 @@ func New%sService() *s%sService {
 		return fmt.Errorf("写入 %s 失败: %v", logicFile, err)
 	}
 	fmt.Printf("生成逻辑实现: %s\n", logicFile)
+
 	return nil
 }
