@@ -472,17 +472,54 @@ func generateModelAtPath(name, basePath, importPrefix string) error {
 	if gfile.Exists(modelPath) {
 		return fmt.Errorf("模型文件已存在: %s", modelPath)
 	}
-	modelTemplate := "package model\n\nimport (\n\t\"github.com/gzdzh-cn/dzhcore\"\n)\n\nconst TableName%s = \"addons_%s\"\n\n// %s 模型，映射表 <addons_%s>\ntype %s struct {\n\t*dzhcore.Model\n\tName     string  `gorm:\"column:name;type:varchar(255);not null\" json:\"name\"` // 名称\n\tValue    string  `gorm:\"column:value;type:varchar(255)\" json:\"value\"`        // 值\n\tOrderNum int32   `gorm:\"column:orderNum;type:int;not null\" json:\"orderNum\"`  // 排序\n\tRemark   *string `gorm:\"column:remark;type:varchar(255)\" json:\"remark\"`      // 备注\n}\n\n// TableName %s 的表名\nfunc (*%s) TableName() string {\n\treturn TableName%s\n}\n\n// GroupName %s 的表分组\nfunc (*%s) GroupName() string {\n\treturn \"default\"\n}\n\n// New%s 创建一个新的 %s 实例\nfunc New%s() *%s {\n\treturn &%s{\n\t\tModel: dzhcore.NewModel(),\n\t}\n}\n\n// init 注册模型\nfunc init() {\n\tdzhcore.AddModel(&%s{})\n}\n"
+	// modelTemplate := "package model\n\nimport (\n\t\"github.com/gzdzh-cn/dzhcore\"\n)\n\nconst TableName%s = \"addons_%s\"\n\n// %s 模型，映射表 <addons_%s>\ntype %s struct {\n\t*dzhcore.Model\n\tName     string  `gorm:\"column:name;type:varchar(255);not null\" json:\"name\"` // 名称\n\tValue    string  `gorm:\"column:value;type:varchar(255)\" json:\"value\"`        // 值\n\tOrderNum int32   `gorm:\"column:orderNum;type:int;not null\" json:\"orderNum\"`  // 排序\n\tRemark   *string `gorm:\"column:remark;type:varchar(255)\" json:\"remark\"`      // 备注\n}\n\n// TableName %s 的表名\nfunc (*%s) TableName() string {\n\treturn TableName%s\n}\n\n// GroupName %s 的表分组\nfunc (*%s) GroupName() string {\n\treturn \"default\"\n}\n\n// New%s 创建一个新的 %s 实例\nfunc New%s() *%s {\n\treturn &%s{\n\t\tModel: dzhcore.NewModel(),\n\t}\n}\n\n// init 注册模型\nfunc init() {\n\tdzhcore.AddModel(&%s{})\n}\n"
+	modelTemplate := `package model
+
+import (
+	"github.com/gzdzh-cn/dzhcore"
+)
+
+const TableName%s = "addons_%s"
+
+// %s 模型，映射表 <addons_%s>
+type %s struct {
+	*dzhcore.Model
+	Name     string  %cgorm:"column:name;type:varchar(255);not null" json:"name"%c // 名称
+	Status   int     %cgorm:"column:status;comment:状态;type:int(11);default:1" json:"status"%c // 状态
+	OrderNum int32   %cgorm:"column:orderNum;type:int;not null" json:"orderNum"%c  // 排序
+	Remark   *string %cgorm:"column:remark;type:varchar(255)" json:"remark"%c      // 备注
+}
+
+// TableName %s 的表名
+func (*%s) TableName() string {
+	return TableName%s
+}
+
+// GroupName %s 的表分组
+func (*%s) GroupName() string {
+	return "default"
+}
+
+// New%s 创建一个新的 %s 实例
+func New%s() *%s {
+	return &%s{
+		Model: dzhcore.NewModel(),
+	}
+}
+
+// init 注册模型
+func init() {
+	dzhcore.AddModel(&%s{})
+}
+`
 	modelContent := fmt.Sprintf(modelTemplate,
-		upperName, name, // const TableName%s = "addons_%s"
-		upperName, name, // 注释
-		upperName,            // type %s struct
-		upperName,            // TableName 注释
-		upperName, upperName, // TableName 方法
-		upperName, upperName, // GroupName 方法
-		upperName, upperName, // New%s 创建
-		upperName, upperName, upperName, // New%s() *%s { return &%s{...}
-		upperName, // init 注册
+		upperName, name,
+		upperName, name,
+		upperName,
+		'`', '`', '`', '`', '`', '`', '`', '`', // 8 个 struct tag 反引号
+		upperName, upperName, upperName,
+		upperName, upperName,
+		upperName, upperName, upperName, upperName, upperName,
 	)
 	if err := gfile.PutContents(modelPath, modelContent); err != nil {
 		return fmt.Errorf("写入模型文件失败: %v", err)

@@ -18,6 +18,12 @@ https://pkg.go.dev/github.com/gzdzh-cn/dzhcore
 - [父类入参增加自定义验证]
 
 ## 更新日志
+v1.3.5 -日期：2025-07-31
+- 修改 service逻辑
+
+v1.3.2 -日期：2025-07-30
+- 修改 servicePage逻辑
+
 v1.3.1 -日期：2025-07-18
 - 增加脚手架命令
 

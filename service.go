@@ -302,6 +302,7 @@ func (s *Service) ServicePage(ctx context.Context, req *PageReq) (data any, err 
 	dbRedisSlice = append(dbRedisSlice, []any{r.Router.Uri, req.Page, req.Size}...)
 
 	m := DDAO(s.Dao, ctx)
+	builder := m.Builder()
 	// 如果pageQueryOp不为空 则使用pageQueryOp进行查询
 	if s.PageQueryOp != nil {
 
@@ -331,44 +332,6 @@ func (s *Service) ServicePage(ctx context.Context, req *PageReq) (data any, err 
 				}
 			}
 		}
-		// 如果KeyWordField不为空 则添加查询条件
-		if !r.Get("keyWord").IsEmpty() || s.PageQueryOp.OrWhere != nil {
-			builder := m.Builder()
-			if !r.Get("keyWord").IsEmpty() {
-				if len(s.PageQueryOp.KeyWordField) > 0 {
-					for _, field := range s.PageQueryOp.KeyWordField {
-						builder = builder.WhereOrLike(field, "%"+r.Get("keyWord").String()+"%")
-					}
-				}
-			}
-
-			if s.PageQueryOp.OrWhere != nil {
-				where := s.PageQueryOp.OrWhere(ctx)
-				if len(where) > 0 {
-					var (
-						whereSlice []string
-						whereStr   string
-					)
-					for _, v := range where {
-						if len(v) == 3 {
-							if gconv.Bool(v[2]) {
-								whereSlice = append(whereSlice, fmt.Sprintf("%s-%s", v[0], v[1]))
-							}
-						}
-						if len(v) == 2 {
-							whereSlice = append(whereSlice, fmt.Sprintf("%s-%s", v[0], v[1]))
-						}
-						if len(v) == 1 {
-							whereSlice = append(whereSlice, fmt.Sprintf("%s", v[0]))
-						}
-					}
-					whereStr = gstr.Join(whereSlice, "OR")
-					builder = builder.WhereOr(whereStr)
-				}
-			}
-			m = m.Where(builder)
-			dbRedisSlice = append(dbRedisSlice, gstr.Trim(r.Get("keyWord").String()))
-		}
 
 		// 加入where条件
 		if s.PageQueryOp.Where != nil {
@@ -397,6 +360,41 @@ func (s *Service) ServicePage(ctx context.Context, req *PageReq) (data any, err 
 			dbRedisSlice = append(dbRedisSlice, whereStr)
 		}
 
+		if s.PageQueryOp.OrWhere != nil {
+			where := s.PageQueryOp.OrWhere(ctx)
+			if len(where) > 0 {
+				var (
+					whereSlice []string
+					whereStr   string
+				)
+				for _, v := range where {
+					if len(v) == 3 {
+						if gconv.Bool(v[2]) {
+							whereSlice = append(whereSlice, fmt.Sprintf("%s-%s", v[0], v[1]))
+						}
+					}
+					if len(v) == 2 {
+						whereSlice = append(whereSlice, fmt.Sprintf("%s-%s", v[0], v[1]))
+					}
+					if len(v) == 1 {
+						whereSlice = append(whereSlice, fmt.Sprintf("%s", v[0]))
+					}
+				}
+				whereStr = gstr.Replace(gstr.JoinAny(whereSlice, "#"), " ", "&&")
+				dbRedisSlice = append(dbRedisSlice, whereStr)
+			}
+		}
+
+		// 如果KeyWordField不为空 则添加查询条件
+		if !r.Get("keyWord").IsEmpty() {
+			if len(s.PageQueryOp.KeyWordField) > 0 {
+				for _, field := range s.PageQueryOp.KeyWordField {
+					builder = builder.WhereOrLike(field, "%"+r.Get("keyWord").String()+"%")
+				}
+			}
+			dbRedisSlice = append(dbRedisSlice, gstr.Trim(r.Get("keyWord").String()))
+		}
+
 		// 如果 addOrderby 不为空 则添加排序
 		if len(s.PageQueryOp.AddOrderby) > 0 && r.Get("order").IsEmpty() && r.Get("sort").IsEmpty() {
 			addOrderby := ""
@@ -415,20 +413,6 @@ func (s *Service) ServicePage(ctx context.Context, req *PageReq) (data any, err 
 			m = s.PageQueryOp.Extend(ctx, m)
 		}
 	}
-	// dbRedisKey := gstr.JoinAny(dbRedisSlice, "/")
-	//cachValue := g.DB().GetCache().MustGet(ctx, dbRedisKey)
-	//g.Log().Infof(ctx, "cachValue:%v", cachValue)
-	//g.DB().GetCore().ClearCacheAll(ctx)
-
-	// if s.PageQueryOp != nil {
-	// 	if Select := s.PageQueryOp.Select; Select != "" {
-	// 		m = m.Fields(Select)
-	// 	}
-	// 	// 如果PageQueryOp的Extend不为空 则执行Extend
-	// 	if s.PageQueryOp.Extend != nil {
-	// 		m = s.PageQueryOp.Extend(ctx, m)
-	// 	}
-	// }
 
 	// 如果 req.Order 和 req.Sort 均不为空 则添加排序
 	if !r.Get("order").IsEmpty() && !r.Get("sort").IsEmpty() {
@@ -437,15 +421,16 @@ func (s *Service) ServicePage(ctx context.Context, req *PageReq) (data any, err 
 		dbRedisSlice = append(dbRedisSlice, gstr.Replace(order, " ", "-"))
 	}
 
-	dbRedisKey := gstr.JoinAny(dbRedisSlice, "/")
-
 	if DbRedisEnable {
 		m = m.Cache(gdb.CacheOption{
 			Duration: time.Duration(DbExpire),
-			Name:     dbRedisKey,
+			Name:     gstr.JoinAny(dbRedisSlice, "/"),
 			Force:    false,
 		})
 	}
+
+	m = m.Where(builder)
+
 	var result []gdb.Record
 	result, total, err = m.Offset((req.Page - 1) * req.Size).Limit(req.Size).AllAndCount(false)
 	if err != nil {
