@@ -17,3 +17,14 @@ type Claims struct {
 	PasswordVersion *int32   `json:"passwordVersion"`
 	jwt.RegisteredClaims
 }
+
+type AppClaims struct {
+	IsRefresh       bool   `json:"isRefresh"`
+	MemberName      string `json:"memberName"`
+	MemberId        string `json:"memberId"`
+	PasswordVersion *int32 `json:"passwordVersion"`
+	NickName        string `json:"nickName"`
+	LevelName       string `json:"levelName"`
+	Level           int    `json:"level"`
+	jwt.RegisteredClaims
+}

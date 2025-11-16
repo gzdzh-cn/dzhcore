@@ -150,7 +150,7 @@ func (s *Service) ServiceUpdate(ctx context.Context, req *UpdateReq) (data any, 
 		}
 	}
 
-	_, err = m.Data(rmap).Where("id", gconv.String(rmap["id"])).Update()
+	_, err = m.Data(rmap).Where("id", gconv.String(rmap["id"])).FieldsEx("createTime").Update()
 	return
 }
 
@@ -286,6 +286,7 @@ func (s *Service) ServicePage(ctx context.Context, req *PageReq) (data any, err 
 		r            = g.RequestFromCtx(ctx)
 		total        = 0
 		dbRedisSlice g.SliceAny
+		// dbSelect     string
 	)
 
 	type pagination struct {
@@ -302,7 +303,9 @@ func (s *Service) ServicePage(ctx context.Context, req *PageReq) (data any, err 
 	dbRedisSlice = append(dbRedisSlice, []any{r.Router.Uri, req.Page, req.Size}...)
 
 	m := DDAO(s.Dao, ctx)
-	builder := m.Builder()
+
+	andBuilder := m.Builder()
+	orBuilder := m.Builder()
 	// 如果pageQueryOp不为空 则使用pageQueryOp进行查询
 	if s.PageQueryOp != nil {
 
@@ -341,16 +344,16 @@ func (s *Service) ServicePage(ctx context.Context, req *PageReq) (data any, err 
 				for _, v := range where {
 					if len(v) == 3 {
 						if gconv.Bool(v[2]) {
-							m = m.Where(v[0], v[1])
+							andBuilder = andBuilder.Where(v[0], v[1])
 							whereSlice = append(whereSlice, fmt.Sprintf("%s-%s", v[0], v[1]))
 						}
 					}
 					if len(v) == 2 {
-						m = m.Where(v[0], v[1])
+						andBuilder = andBuilder.Where(v[0], v[1])
 						whereSlice = append(whereSlice, fmt.Sprintf("%s-%s", v[0], v[1]))
 					}
 					if len(v) == 1 {
-						m = m.Where(v[0])
+						andBuilder = andBuilder.Where(v[0])
 						whereSlice = append(whereSlice, fmt.Sprintf("%s", v[0]))
 					}
 				}
@@ -370,16 +373,20 @@ func (s *Service) ServicePage(ctx context.Context, req *PageReq) (data any, err 
 				for _, v := range where {
 					if len(v) == 3 {
 						if gconv.Bool(v[2]) {
+							orBuilder = orBuilder.WhereOr(v[0], v[1])
 							whereSlice = append(whereSlice, fmt.Sprintf("%s-%s", v[0], v[1]))
 						}
 					}
 					if len(v) == 2 {
+						orBuilder = orBuilder.WhereOr(v[0], v[1])
 						whereSlice = append(whereSlice, fmt.Sprintf("%s-%s", v[0], v[1]))
 					}
 					if len(v) == 1 {
+						orBuilder = orBuilder.WhereOr(v[0])
 						whereSlice = append(whereSlice, fmt.Sprintf("%s", v[0]))
 					}
 				}
+
 				whereStr = gstr.Replace(gstr.JoinAny(whereSlice, "#"), " ", "&&")
 				dbRedisSlice = append(dbRedisSlice, whereStr)
 			}
@@ -389,7 +396,7 @@ func (s *Service) ServicePage(ctx context.Context, req *PageReq) (data any, err 
 		if !r.Get("keyWord").IsEmpty() {
 			if len(s.PageQueryOp.KeyWordField) > 0 {
 				for _, field := range s.PageQueryOp.KeyWordField {
-					builder = builder.WhereOrLike(field, "%"+r.Get("keyWord").String()+"%")
+					orBuilder = orBuilder.WhereOrLike(field, "%"+r.Get("keyWord").String()+"%")
 				}
 			}
 			dbRedisSlice = append(dbRedisSlice, gstr.Trim(r.Get("keyWord").String()))
@@ -408,10 +415,16 @@ func (s *Service) ServicePage(ctx context.Context, req *PageReq) (data any, err 
 		if Select := s.PageQueryOp.Select; Select != "" {
 			m = m.Fields(Select)
 		}
+
+		builder := m.Builder()
+		builder = builder.Where(andBuilder).Where(orBuilder)
+		m = m.Where(builder)
+
 		// 如果PageQueryOp的Extend不为空 则执行Extend
 		if s.PageQueryOp.Extend != nil {
 			m = s.PageQueryOp.Extend(ctx, m)
 		}
+
 	}
 
 	// 如果 req.Order 和 req.Sort 均不为空 则添加排序
@@ -428,8 +441,6 @@ func (s *Service) ServicePage(ctx context.Context, req *PageReq) (data any, err 
 			Force:    false,
 		})
 	}
-
-	m = m.Where(builder)
 
 	var result []gdb.Record
 	result, total, err = m.Offset((req.Page - 1) * req.Size).Limit(req.Size).AllAndCount(false)

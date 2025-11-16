@@ -44,6 +44,7 @@ var (
 	DbRedisEnable  = false // 开启db 查询结果使用 redis 缓存
 	RedisConfig    = &gredis.Config{}
 	DbExpire       int64
+	Redis          *gredis.Redis
 )
 
 func init() {
@@ -77,13 +78,13 @@ func NewInit() {
 				g.Log().Errorf(ctx, "初始化缓存失败,请检查配置文件:%v", err)
 				return
 			}
-			redis, err := gredis.New(RedisConfig)
+			Redis, err = gredis.New(RedisConfig)
 			if err != nil {
 				g.Log().Errorf(ctx, "初始化缓存失败,请检查配置文件:%v", err)
 				panic(err)
 			}
 			g.Log().Debug(ctx, "redis开启成功")
-			CacheManager.SetAdapter(gcache.NewAdapterRedis(redis))
+			CacheManager.SetAdapter(gcache.NewAdapterRedis(Redis))
 		}
 
 		//db 查询使用指定缓存分组
@@ -122,6 +123,11 @@ func NewInit() {
 
 	g.Log().Debug(ctx, "------------ dzhcore NewInit end")
 
+}
+
+// 创建雪花ID
+func CreateSnowflakeId() string {
+	return NodeSnowflake.Generate().String()
 }
 
 // 获取配置
