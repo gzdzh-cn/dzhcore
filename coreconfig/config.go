@@ -55,16 +55,24 @@ func newConfig() *defineStruct.Config {
 		},
 		Redis: defineStruct.RedisConfig{
 			Enable: env.GetCfgWithDefault(ctx, "redis.enable", g.NewVar(false)).Bool(),
-			Core: defineStruct.RedisCore{
-				Address: env.GetCfgWithDefault(ctx, "redis.core.address", g.NewVar("127.0.0.1:6379")).String(),
-				DB:      env.GetCfgWithDefault(ctx, "redis.core.db", g.NewVar(0)).Int(),
-				Pass:    env.GetCfgWithDefault(ctx, "redis.core.pass", g.NewVar("")).String(),
+			CfRedis: defineStruct.RedisCore{
+				Address: env.GetCfgWithDefault(ctx, "redis.cfRedis.address", g.NewVar("127.0.0.1:16379")).String(),
+				DB:      env.GetCfgWithDefault(ctx, "redis.cfRedis.db", g.NewVar(0)).Int(),
+				Pass:    env.GetCfgWithDefault(ctx, "redis.cfRedis.pass", g.NewVar("")).String(),
+				Expire:  env.GetCfgWithDefault(ctx, "redis.cfRedis.expire", g.NewVar(12960000)).Uint(),
 			},
 			DBRedis: defineStruct.DBRedisConfig{
-				Enable: env.GetCfgWithDefault(ctx, "redis.dbRedis.enable", g.NewVar(false)).Bool(),
-				Expire: env.GetCfgWithDefault(ctx, "redis.dbRedis.expire", g.NewVar(60000)).Int64(),
-				DB:     env.GetCfgWithDefault(ctx, "redis.dbRedis.db", g.NewVar(9)).Int(),
+				Address: env.GetCfgWithDefault(ctx, "redis.dbRedis.address", g.NewVar("127.0.0.1:16379")).String(),
+				Enable:  env.GetCfgWithDefault(ctx, "redis.dbRedis.enable", g.NewVar(false)).Bool(),
+				Expire:  env.GetCfgWithDefault(ctx, "redis.dbRedis.expire", g.NewVar(60000)).Uint(),
+				DB:      env.GetCfgWithDefault(ctx, "redis.dbRedis.db", g.NewVar(9)).Int(),
 			},
+		},
+		Elasticsearch: defineStruct.ElasticsearchConfig{
+			Enable:   env.GetCfgWithDefault(ctx, "elasticsearch.enable", g.NewVar(true)).Bool(),
+			Host:     env.GetCfgWithDefault(ctx, "elasticsearch.host", g.NewVar("http://127.0.0.1:9200")).String(),
+			Username: env.GetCfgWithDefault(ctx, "elasticsearch.username", g.NewVar("")).String(),
+			Password: env.GetCfgWithDefault(ctx, "elasticsearch.password", g.NewVar("")).String(),
 		},
 		Core: defineStruct.CoreConfig{
 			AppName:     env.GetCfgWithDefault(ctx, "core.appName", g.NewVar("dzhgo")).String(),
@@ -72,6 +80,10 @@ func newConfig() *defineStruct.Config {
 			IsProd:      env.GetCfgWithDefault(ctx, "core.isProd", g.NewVar(false)).Bool(),
 			AutoMigrate: env.GetCfgWithDefault(ctx, "core.autoMigrate", g.NewVar(true)).Bool(),
 			Eps:         env.GetCfgWithDefault(ctx, "core.eps", g.NewVar(true)).Bool(),
+			Notice: defineStruct.NoticeConfig{
+				Enable: env.GetCfgWithDefault(ctx, "core.notice.enable", g.NewVar(true)).Bool(),
+				Send:   env.GetCfgWithDefault(ctx, "core.notice.send", g.NewVar(5)).Int(),
+			},
 			SQLLogger: defineStruct.LoggerConfig{
 				Path:   env.GetCfgWithDefault(ctx, "core.sqlLogger.path", g.NewVar("./data/logs/sql")).String(),
 				File:   env.GetCfgWithDefault(ctx, "core.sqlLogger.file", g.NewVar("sql-{Y-m-d}.log")).String(),
@@ -116,8 +128,8 @@ func newConfig() *defineStruct.Config {
 					SSO:    env.GetCfgWithDefault(ctx, "modules.base.jwt.sso", g.NewVar(false)).Bool(),
 					Secret: env.GetCfgWithDefault(ctx, "modules.base.jwt.secret", g.NewVar("88888888")).String(),
 					Token: defineStruct.TokenConfig{
-						Expire:        env.GetCfgWithDefault(ctx, "modules.base.jwt.token.expire", g.NewVar(604800)).Int(),
-						RefreshExpire: env.GetCfgWithDefault(ctx, "modules.base.jwt.token.refreshExpire", g.NewVar(1296000)).Int(),
+						Expire:        env.GetCfgWithDefault(ctx, "modules.base.jwt.token.expire", g.NewVar(604800)).Uint(),
+						RefreshExpire: env.GetCfgWithDefault(ctx, "modules.base.jwt.token.refreshExpire", g.NewVar(1296000)).Uint(),
 					},
 				},
 				Middleware: defineStruct.MiddlewareConfig{

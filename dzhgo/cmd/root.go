@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/gogf/gf/v2/os/gcmd"
-	"github.com/gzdzh-cn/dzhcore/dzhgo/version"
+	"github.com/gzdzh-cn/dzhcore/dzhgo/config"
 )
 
 // Root 根命令
@@ -68,7 +68,7 @@ DzhGO 代码生成工具，用于快速生成控制器、模型和服务代码�
 - 没有 addons 参数时，只能使用 model、controller 或 logic 参数生成 internal 下的文件
 - model、controller、logic 可以单独使用，只生成对应的逻辑模板
 
-`, version.Version),
+`, config.Version),
 		Additional: fmt.Sprintf(`
 安装和更新：
 go install github.com/gzdzh-cn/dzhcore/dzhgo@latest
@@ -83,7 +83,7 @@ go install github.com/gzdzh-cn/dzhcore/dzhgo@latest
 		Usage: "version",
 		Brief: "显示版本信息",
 		Func: func(ctx context.Context, parser *gcmd.Parser) (err error) {
-			fmt.Println(version.Version)
+			fmt.Println(config.Version)
 			return nil
 		},
 	}

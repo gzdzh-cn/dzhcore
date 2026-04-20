@@ -2,11 +2,12 @@ package defineStruct
 
 // 总配置结构体
 type Config struct {
-	Server   ServerConfig   `yaml:"server"`   // 服务器相关配置
-	Database DatabaseConfig `yaml:"database"` // 数据库相关配置
-	Redis    RedisConfig    `yaml:"redis"`    // Redis相关配置
-	Core     CoreConfig     `yaml:"core"`     // 核心配置
-	Modules  ModulesConfig  `yaml:"modules"`  // 业务模块配置
+	Server        ServerConfig        `yaml:"server"`        // 服务器相关配置
+	Database      DatabaseConfig      `yaml:"database"`      // 数据库相关配置
+	Redis         RedisConfig         `yaml:"redis"`         // Redis相关配置
+	Core          CoreConfig          `yaml:"core"`          // 核心配置
+	Modules       ModulesConfig       `yaml:"modules"`       // 业务模块配置
+	Elasticsearch ElasticsearchConfig `yaml:"elasticsearch"` // elasticsearch配置
 }
 
 // 服务器相关配置
@@ -47,16 +48,17 @@ type DatabaseConfig struct {
 // Redis相关配置
 type RedisConfig struct {
 	Enable  bool          `yaml:"enable"`  // 是否启用Redis
-	Core    RedisCore     `yaml:"core"`    // Redis核心配置
+	CfRedis RedisCore     `yaml:"cfRedis"` // Redis核心配置
 	DBRedis DBRedisConfig `yaml:"dbRedis"` // 数据库缓存相关
 
 }
 
 // 数据库缓存相关配置
 type DBRedisConfig struct {
-	Enable bool  `yaml:"enable"` // 是否启用数据库缓存
-	Expire int64 `yaml:"expire"` // 缓存过期时间（毫秒）
-	DB     int   `yaml:"db"`     // Redis数据库编号
+	Address string `yaml:"address"` // Redis地址
+	Enable  bool   `yaml:"enable"`  // 是否启用数据库缓存
+	Expire  uint   `yaml:"expire"`  // 缓存过期时间（毫秒）
+	DB      int    `yaml:"db"`      // Redis数据库编号
 }
 
 // Redis核心配置
@@ -64,6 +66,7 @@ type RedisCore struct {
 	Address string `yaml:"address"` // Redis地址
 	DB      int    `yaml:"db"`      // Redis数据库编号
 	Pass    string `yaml:"pass"`    // Redis密码（如有需要可取消注释）
+	Expire  uint   `yaml:"expire"`  // 过期时间（毫秒）
 }
 
 // 核心配置
@@ -73,10 +76,27 @@ type CoreConfig struct {
 	IsProd      bool         `yaml:"isProd"`      // 是否生产模式
 	AutoMigrate bool         `yaml:"autoMigrate"` // 是否自动建表
 	Eps         bool         `yaml:"eps"`         // 是否生成前端路由
+	Notice      NoticeConfig `yaml:"notice"`      // 通知队列配置
 	SQLLogger   LoggerConfig `yaml:"sqlLogger"`   // SQL日志配置
 	GFLogger    LoggerConfig `yaml:"gfLogger"`    // GF日志配置
 	RunLogger   RunLogger    `yaml:"runLogger"`   // 运行日志配置
 	File        FileConfig   `yaml:"file"`        // 文件上传配置
+}
+
+// 通知队列配置
+type NoticeConfig struct {
+	Enable  bool `yaml:"enable"`  // 是否启用通知队列
+	Send    int  `yaml:"send"`    // 发送时间，单位秒，60秒发送一次数据
+	Cleanup int  `yaml:"cleanup"` // 清理时间，单位秒，定时检查一次连接状态
+	Expire  int  `yaml:"expire"`  // 过期时间，单位秒，超过此时间，连接将被清理
+}
+
+// elasticsearch
+type ElasticsearchConfig struct {
+	Enable   bool   `yaml:"enable"`   // 是否启用elasticsearch
+	Host     string `yaml:"host"`     // elasticsearch地址
+	Username string `yaml:"username"` // elasticsearch用户名
+	Password string `yaml:"password"` // elasticsearch密码
 }
 
 // 日志配置
@@ -157,8 +177,8 @@ type JWTConfig struct {
 
 // Token相关配置
 type TokenConfig struct {
-	Expire        int `yaml:"expire"`        // Token过期时间（秒）
-	RefreshExpire int `yaml:"refreshExpire"` // 刷新Token过期时间（秒）
+	Expire        uint `yaml:"expire"`        // Token过期时间（秒）
+	RefreshExpire uint `yaml:"refreshExpire"` // 刷新Token过期时间（秒）
 }
 
 // 中间件配置

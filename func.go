@@ -53,7 +53,7 @@ func RunFunc(ctx g.Ctx, funcstring string) (err error) {
 // ClusterRunFunc 集群运行函数,如果是单机模式, 则直接运行函数
 func ClusterRunFunc(ctx g.Ctx, funcstring string) (err error) {
 	if IsRedisMode {
-		conn, err := g.Redis("core").Conn(ctx)
+		conn, err := g.Redis("cfRedis").Conn(ctx)
 		if err != nil {
 			return err
 		}
@@ -68,7 +68,7 @@ func ClusterRunFunc(ctx g.Ctx, funcstring string) (err error) {
 // ListenFunc 监听函数
 func ListenFunc(ctx g.Ctx) {
 	if IsRedisMode {
-		conn, err := g.Redis("core").Conn(ctx)
+		conn, err := g.Redis("cfRedis").Conn(ctx)
 		if err != nil {
 			panic(err)
 		}

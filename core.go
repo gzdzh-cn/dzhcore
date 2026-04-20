@@ -3,7 +3,6 @@ package dzhcore
 import (
 	"context"
 	"path/filepath"
-	"time"
 
 	"github.com/gzdzh-cn/dzhcore/coreconfig"
 	"github.com/gzdzh-cn/dzhcore/envconfig"
@@ -43,7 +42,7 @@ var (
 	DbCacheManager = gcache.New()
 	DbRedisEnable  = false // 开启db 查询结果使用 redis 缓存
 	RedisConfig    = &gredis.Config{}
-	DbExpire       int64
+	DbExpire       uint
 	Redis          *gredis.Redis
 )
 
@@ -65,7 +64,7 @@ func NewInit() {
 
 	if IsRedisMode {
 
-		redisVar, err := g.Cfg().Get(ctx, "redis.core")
+		redisVar, err := g.Cfg().Get(ctx, "redis.cfRedis")
 		if err != nil {
 			g.Log().Errorf(ctx, "初始化缓存失败,请检查配置文件:%v", err)
 			panic(err)
@@ -151,11 +150,15 @@ func getConfig() {
 	if RunMode == "core-tools" {
 		return
 	}
+	// 直接从配置文件中读取Redis启用状态
 	IsRedisMode = coreconfig.Config.Redis.Enable
 	DbRedisEnable = coreconfig.Config.Redis.DBRedis.Enable
-	DbExpire = coreconfig.Config.Redis.DBRedis.Expire * int64(time.Millisecond)
+	DbExpire = coreconfig.Config.Redis.DBRedis.Expire
+	// IsRedisMode = g.Cfg().MustGet(ctx, "redis.enable").Bool()
+	// DbRedisEnable = g.Cfg().MustGet(ctx, "redis.dbRedis.enable").Bool()
+	// DbExpire = g.Cfg().MustGet(ctx, "redis.dbRedis.expire").Uint()
 
-	g.Log().Debugf(ctx, "config.IsProd:%v, config.IsDesktop:%v, config.AppName:%v", envconfig.IsProd, envconfig.IsDesktop, envconfig.AppName)
+	g.Log().Debugf(ctx, "config.IsProd:%v, config.IsDesktop:%v, config.AppName:%v, IsRedisMode:%v", envconfig.IsProd, envconfig.IsDesktop, envconfig.AppName, IsRedisMode)
 }
 
 // 数据库配置
