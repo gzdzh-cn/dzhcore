@@ -2,7 +2,9 @@ package dzhcore
 
 import (
 	"context"
+	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/gzdzh-cn/dzhcore/coreconfig"
 	"github.com/gzdzh-cn/dzhcore/envconfig"
@@ -55,6 +57,15 @@ func NewInit() {
 
 	coreconfig.LoadEnv()
 	getConfig()
+	if envconfig.IsProd {
+		SetAddonManifestMode(ManifestModePacked)
+	} else {
+		SetAddonManifestMode(ManifestModeFilesystem)
+	}
+	g.Log().Infof(ctx, "插件清单模式: %s", manifestMode)
+	if err := PrepareAddonModelsForStartup(); err != nil {
+		panic(err)
+	}
 	local.NewInit()
 	setDataBase()
 	setLogger()
@@ -137,11 +148,7 @@ func getConfig() {
 	if envconfig.IsDesktop {
 		envconfig.IsProd = coreconfig.Config.Core.IsProd
 	} else {
-		if _, ok := gbuildData["builtTime"]; ok {
-			envconfig.IsProd = true
-		} else {
-			envconfig.IsProd = false
-		}
+		envconfig.IsProd = isProductionRuntime(gbuildData)
 	}
 
 	if _, ok := gbuildData["mode"]; ok {
@@ -159,6 +166,22 @@ func getConfig() {
 	// DbExpire = g.Cfg().MustGet(ctx, "redis.dbRedis.expire").Uint()
 
 	g.Log().Debugf(ctx, "config.IsProd:%v, config.IsDesktop:%v, config.AppName:%v, IsRedisMode:%v", envconfig.IsProd, envconfig.IsDesktop, envconfig.AppName, IsRedisMode)
+}
+
+// isProductionRuntime determines the server runtime mode. The explicit
+// environment variable is used by Docker deployments so a binary built by
+// plain go build cannot accidentally fall back to the physical addons
+// directory. GoFrame's builtTime remains the default production signal for
+// binaries built by gf build.
+func isProductionRuntime(gbuildData map[string]any) bool {
+	switch strings.ToLower(strings.TrimSpace(os.Getenv("DZH_RUNTIME_MODE"))) {
+	case "production", "prod":
+		return true
+	case "development", "dev":
+		return false
+	}
+	_, ok := gbuildData["builtTime"]
+	return ok
 }
 
 // 数据库配置

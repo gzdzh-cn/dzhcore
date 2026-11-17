@@ -220,11 +220,19 @@ func RegisterController(c IController) {
 	if err != nil {
 		return
 	}
-	if coreconfig.Config.Core.Eps {
-		//dao := sController.Service.GetDao()
-		//columns := getModelInfo(ctx, sController.Prefix, dao)
-		model := sController.Service.GetModel()
-		columns := getModelInfo(ctx, sController.Prefix, model)
+	model := sController.Service.GetModel()
+	modelTableAvailable := true
+	if IsModelExcludedFromAutoMigrate(model) {
+		if _, err = g.DB(model.GroupName()).TableFields(ctx, model.TableName()); err != nil {
+			modelTableAvailable = false
+			g.Log().Infof(ctx, "插件表未安装，跳过 EPS 字段读取但保留控制器路由: %s, 表: %s", sController.Prefix, model.TableName())
+		}
+	}
+	if coreconfig.Config.Core.Eps && modelTableAvailable {
+		columns, err := getModelInfo(ctx, sController.Prefix, model)
+		if err != nil {
+			panic(err)
+		}
 		ModelInfo[sController.Prefix] = columns
 	}
 	g.Server().Group(
@@ -249,11 +257,11 @@ type ColumnInfo struct {
 var ModelInfo = make(map[string][]*ColumnInfo)
 
 // getModelInfo 获取模型信息
-func getModelInfo(ctx g.Ctx, prefix string, model IModel) (columns []*ColumnInfo) {
+func getModelInfo(ctx g.Ctx, prefix string, model IModel) (columns []*ColumnInfo, err error) {
 
 	fields, err := g.DB(model.GroupName()).TableFields(ctx, model.TableName())
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	// RunLogger.Info(ctx, "fields", fields)
 	sortedFields := garray.NewArraySize(len(fields), len(fields))
@@ -285,5 +293,5 @@ func getModelInfo(ctx g.Ctx, prefix string, model IModel) (columns []*ColumnInfo
 		}
 		columns = append(columns, column)
 	}
-	return
+	return columns, nil
 }
